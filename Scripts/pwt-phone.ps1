@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # ============================================================================
 #  pwt phone  —  Android (ADB) helper  [PowerShell 7+]
 #  Streaming · Terminal · Dual-pane file transfer (Total Commander style)
@@ -6,26 +6,28 @@
 
 #requires -Version 7.0
 
-# ── Palette ───────────────────────────────────────────────────────────────────
+# ── Palette (24-bit ANSI via $PSStyle) ────────────────────────────────────────
 $script:C = @{
-    Frame      = [ConsoleColor]::DarkCyan
-    FrameAct   = [ConsoleColor]::Cyan
-    Header     = [ConsoleColor]::DarkGray
-    OK         = [ConsoleColor]::Green
-    Warn       = [ConsoleColor]::Yellow
-    Err        = [ConsoleColor]::Red
-    Info       = [ConsoleColor]::DarkCyan
-    Muted      = [ConsoleColor]::DarkGray
-    White      = [ConsoleColor]::White
-    Dir        = [ConsoleColor]::Cyan
-    File       = [ConsoleColor]::White
-    DotDot     = [ConsoleColor]::DarkGray
-    SelFg      = [ConsoleColor]::Black
-    SelBg      = [ConsoleColor]::Cyan
-    SelBgInact = [ConsoleColor]::DarkGray
-    FKeyFg     = [ConsoleColor]::Black
-    FKeyBg     = [ConsoleColor]::Cyan
-    FKeyNum    = [ConsoleColor]::Yellow
+    Frame      = $PSStyle.Foreground.FromRgb(0x0E, 0x74, 0x8A)   # teal
+    FrameAct   = $PSStyle.Foreground.FromRgb(0x38, 0xBD, 0xF8)   # sky blue
+    Header     = $PSStyle.Foreground.FromRgb(0x6B, 0x72, 0x80)   # slate
+    OK         = $PSStyle.Foreground.FromRgb(0x4A, 0xD9, 0xA1)   # emerald
+    Warn       = $PSStyle.Foreground.FromRgb(0xF7, 0xC9, 0x48)   # amber
+    Err        = $PSStyle.Foreground.FromRgb(0xFF, 0x6B, 0x6B)   # coral
+    Info       = $PSStyle.Foreground.FromRgb(0x7D, 0xD3, 0xFC)   # light sky
+    Muted      = $PSStyle.Foreground.FromRgb(0x6B, 0x72, 0x80)   # slate
+    White      = $PSStyle.Foreground.FromRgb(0xE6, 0xEA, 0xF2)   # near-white
+    Dir        = $PSStyle.Foreground.FromRgb(0x38, 0xBD, 0xF8)   # sky blue
+    File       = $PSStyle.Foreground.FromRgb(0xE6, 0xEA, 0xF2)   # near-white
+    DotDot     = $PSStyle.Foreground.FromRgb(0x6B, 0x72, 0x80)   # slate
+    SelFg      = $PSStyle.Foreground.FromRgb(0x0F, 0x17, 0x2A)   # near-black
+    SelBg      = $PSStyle.Background.FromRgb(0x38, 0xBD, 0xF8)   # sky blue bg
+    SelBgInact = $PSStyle.Background.FromRgb(0x4B, 0x55, 0x63)   # mid-gray bg
+    FKeyFg     = $PSStyle.Foreground.FromRgb(0x0F, 0x17, 0x2A)   # near-black
+    FKeyBg     = $PSStyle.Background.FromRgb(0x38, 0xBD, 0xF8)   # sky blue bg
+    FKeyBarBg  = $PSStyle.Background.FromRgb(0x1E, 0x3A, 0x5C)   # navy bg
+    FKeyNum    = $PSStyle.Foreground.FromRgb(0xF7, 0xC9, 0x48)   # amber
+    Reset      = $PSStyle.Reset
 }
 
 # ── Box-drawing ────────────────────────────────────────────────────────────────
@@ -51,13 +53,10 @@ function script:Set-Cur([int]$X, [int]$Y) { [Console]::SetCursorPosition($X, $Y)
 
 function script:Write-At {
     param([int]$X, [int]$Y, [string]$Text,
-          [ConsoleColor]$Fg = [ConsoleColor]::White,
-          [ConsoleColor]$Bg = [ConsoleColor]::Black)
+          [string]$Fg = $script:C.White,
+          [string]$Bg = '')
     Set-Cur $X $Y
-    [Console]::ForegroundColor = $Fg
-    [Console]::BackgroundColor = $Bg
-    [Console]::Write($Text)
-    [Console]::ResetColor()
+    [Console]::Write("$Fg$Bg$Text$($script:C.Reset)")
 }
 
 function script:Fit([string]$S, [int]$Max, [switch]$Pad) {
@@ -69,46 +68,50 @@ function script:Fit([string]$S, [int]$Max, [switch]$Pad) {
 function script:Cls { [Console]::Write("`e[2J`e[H") }
 
 # ── Styled wrappers ───────────────────────────────────────────────────────────
-function script:W-OK   ([string]$M) { Write-PwtHost "  ✔  $M" -ForegroundColor $script:C.OK }
-function script:W-Err  ([string]$M) { Write-PwtHost "  ✘  $M" -ForegroundColor $script:C.Err }
-function script:W-Warn ([string]$M) { Write-PwtHost "  ⚠  $M" -ForegroundColor $script:C.Warn }
-function script:W-Info ([string]$M) { Write-PwtHost "  ◈  $M" -ForegroundColor $script:C.Info }
-function script:W-Dim  ([string]$M) { Write-PwtHost "     $M" -ForegroundColor $script:C.Muted }
+function script:W-Ansi ([string]$Ansi, [string]$M) {
+    [Console]::WriteLine("$Ansi$M$($script:C.Reset)")
+}
+function script:W-OK   ([string]$M) { W-Ansi $script:C.OK   "  ✔  $M" }
+function script:W-Err  ([string]$M) { W-Ansi $script:C.Err  "  ✘  $M" }
+function script:W-Warn ([string]$M) { W-Ansi $script:C.Warn "  ⚠  $M" }
+function script:W-Info ([string]$M) { W-Ansi $script:C.Info "  ◈  $M" }
+function script:W-Dim  ([string]$M) { W-Ansi $script:C.Muted "     $M" }
 
 function script:W-Box {
-    param([string[]]$Lines, [string]$Title = '', [ConsoleColor]$Col = [ConsoleColor]::DarkCyan)
+    param([string[]]$Lines, [string]$Title = '', [string]$Col = $script:C.Frame)
+    $R      = $script:C.Reset
+    $W      = $script:C.White
     $maxLen = ($Lines | ForEach-Object { $_.Length } | Measure-Object -Maximum).Maximum ?? 0
     $inner  = [Math]::Max($maxLen, $Title.Length) + 2
     $bar    = $script:B.H * $inner
-    Write-PwtHost "  $($script:B.TL)$bar$($script:B.TR)" -ForegroundColor $Col
+    [Console]::WriteLine("  $Col$($script:B.TL)$bar$($script:B.TR)$R")
     if ($Title) {
         $padL = [int][Math]::Floor(($inner - $Title.Length) / 2)
         $padR = $inner - $Title.Length - $padL
-        Write-PwtHost "  $($script:B.V)$(' ' * $padL)$Title$(' ' * $padR)$($script:B.V)" -ForegroundColor $Col
-        Write-PwtHost "  $($script:B.LT)$bar$($script:B.RT)" -ForegroundColor $Col
+        [Console]::WriteLine("  $Col$($script:B.V)$(' ' * $padL)$Title$(' ' * $padR)$($script:B.V)$R")
+        [Console]::WriteLine("  $Col$($script:B.LT)$bar$($script:B.RT)$R")
     }
     foreach ($l in $Lines) {
-        Write-PwtHost "  $($script:B.V) " -ForegroundColor $Col -NoNewline
-        Write-PwtHost $l.PadRight($inner - 2) -ForegroundColor $script:C.White -NoNewline
-        Write-PwtHost " $($script:B.V)" -ForegroundColor $Col
+        [Console]::WriteLine("  $Col$($script:B.V) $R$($l.PadRight($inner - 2))$Col $($script:B.V)$R")
     }
-    Write-PwtHost "  $($script:B.BL)$bar$($script:B.BR)" -ForegroundColor $Col
+    [Console]::WriteLine("  $Col$($script:B.BL)$bar$($script:B.BR)$R")
 }
 
 function script:W-Section([string]$T) {
-    Write-PwtHost ""
-    Write-PwtHost "  $($script:B.Sep)$($script:B.Sep) $T" -ForegroundColor $script:C.FrameAct
+    [Console]::WriteLine("")
+    [Console]::WriteLine("  $($script:C.FrameAct)$($script:B.Sep)$($script:B.Sep) $T$($script:C.Reset)")
 }
 
 function script:Prompt-Choice {
     param([string]$Question, [string[]]$Options, [int]$Default = 1)
-    Write-PwtHost ""
-    Write-PwtHost "  $Question" -ForegroundColor $script:C.Warn
+    $R = $script:C.Reset
+    [Console]::WriteLine("")
+    [Console]::WriteLine("  $($script:C.Warn)$Question$R")
     for ($i = 0; $i -lt $Options.Count; $i++) {
         $marker = if ($i + 1 -eq $Default) { $script:B.Arr } else { ' ' }
-        Write-PwtHost "    $marker $($i+1)) $($Options[$i])" -ForegroundColor $script:C.White
+        [Console]::WriteLine("    $($script:C.White)$marker $($i+1)) $($Options[$i])$R")
     }
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     do {
         $r  = Read-Host "  Wybór [Enter=$Default]"
         if ([string]::IsNullOrWhiteSpace($r)) { return $Default }
@@ -121,8 +124,7 @@ function script:Prompt-Choice {
 
 function script:Prompt-YN([string]$Q, [bool]$Default = $true) {
     $hint = if ($Default) { 'T/n' } else { 't/N' }
-    Write-PwtHost "  $Q " -ForegroundColor $script:C.Warn -NoNewline
-    Write-PwtHost "($hint) " -ForegroundColor $script:C.Muted -NoNewline
+    [Console]::Write("  $($script:C.Warn)$Q $($script:C.Muted)($hint) $($script:C.Reset)")
     $r = Read-Host
     if ([string]::IsNullOrWhiteSpace($r)) { return $Default }
     return $r -in @('t', 'T', 'y', 'Y')
@@ -135,12 +137,12 @@ function script:Prompt-YN([string]$Q, [bool]$Default = $true) {
 function script:Test-Tool {
     param([string]$Name, [string]$Description, [string]$Winget, [string]$Url)
     if (Get-Command $Name -ErrorAction SilentlyContinue) { return $true }
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     W-Err "$Name nie znaleziono w PATH."
     W-Dim $Description
     if ($Winget) { W-Dim "  Instalacja:  winget install $Winget" }
     if ($Url)    { W-Dim "  Pobierz: $Url" }
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     return $false
 }
 
@@ -150,19 +152,14 @@ function script:Write-PhoneToolStatus {
         $CommandInfo,
         [switch]$Required
     )
-
+    $R     = $script:C.Reset
     $label = if ($Required) { 'required' } else { 'optional' }
     if ($CommandInfo) {
-        Write-PwtHost ("    {0,-8} " -f $Name) -NoNewline
-        Write-PwtHost "[OK]      " -NoNewline -ForegroundColor $script:C.OK
-        Write-PwtHost "$label  " -NoNewline -ForegroundColor $script:C.Muted
-        Write-PwtHost $CommandInfo.Source -ForegroundColor $script:C.White
+        [Console]::WriteLine("    $($script:C.White){0,-8} $R$($script:C.OK)[OK]      $R$($script:C.Muted)$label  $R$($script:C.White)$($CommandInfo.Source)$R" -f $Name)
     } else {
         $color = if ($Required) { $script:C.Err } else { $script:C.Warn }
-        $text = if ($Required) { '[MISSING]' } else { '[missing]' }
-        Write-PwtHost ("    {0,-8} " -f $Name) -NoNewline
-        Write-PwtHost ("{0,-9}" -f $text) -NoNewline -ForegroundColor $color
-        Write-PwtHost "$label" -ForegroundColor $script:C.Muted
+        $text  = if ($Required) { '[MISSING]' } else { '[missing]' }
+        [Console]::WriteLine("    $($script:C.White){0,-8} $R${color}{1,-9}$R$($script:C.Muted)$label$R" -f $Name, $text)
     }
 }
 
@@ -179,12 +176,12 @@ function script:Show-PwtPhoneStatus {
     $adb = Get-Command 'adb' -ErrorAction SilentlyContinue
     $scrcpy = Get-Command 'scrcpy' -ErrorAction SilentlyContinue
 
-    Write-PwtHost ""
-    Write-PwtHost "  pwt phone status" -ForegroundColor $script:C.FrameAct
-    Write-PwtHost "  ----------------" -ForegroundColor $script:C.Muted
+    [Console]::WriteLine("")
+    [Console]::WriteLine("  $($script:C.FrameAct)pwt phone status$($script:C.Reset)")
+    [Console]::WriteLine("  $($script:C.Muted)----------------$($script:C.Reset)")
     Write-PhoneToolStatus -Name 'adb' -CommandInfo $adb -Required
     Write-PhoneToolStatus -Name 'scrcpy' -CommandInfo $scrcpy
-    Write-PwtHost ""
+    [Console]::WriteLine("")
 
     if (-not $adb) {
         Test-Tool -Name 'adb' `
@@ -204,15 +201,12 @@ function script:Show-PwtPhoneStatus {
         return
     }
 
-    Write-PwtHost "  Devices:" -ForegroundColor $script:C.FrameAct
+    [Console]::WriteLine("  $($script:C.FrameAct)Devices:$($script:C.Reset)")
     foreach ($d in $devices) {
         $type = if ($d.IsUSB) { 'USB' } else { 'Wi-Fi' }
         $stateColor = if ($d.Ready) { $script:C.OK } elseif ($d.Unauthorized) { $script:C.Warn } else { $script:C.Err }
-
-        Write-PwtHost "    " -NoNewline
-        Write-PwtHost ("{0,-28}" -f $d.Serial) -NoNewline -ForegroundColor $script:C.White
-        Write-PwtHost (" {0,-5}" -f $type) -NoNewline -ForegroundColor $script:C.Info
-        Write-PwtHost (" {0}" -f $d.State) -ForegroundColor $stateColor
+        $R = $script:C.Reset
+        [Console]::WriteLine("    $($script:C.White){0,-28}$R $($script:C.Info){1,-5}$R $stateColor{2}$R" -f $d.Serial, $type, $d.State)
 
         if ($d.Ready) {
             $model = Get-AdbPropValue -Serial $d.Serial -Name 'ro.product.model'
@@ -230,7 +224,7 @@ function script:Show-PwtPhoneStatus {
             W-Dim "  Autoryzuj debugowanie USB na ekranie telefonu."
         }
     }
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     $global:LASTEXITCODE = 0
 }
 
@@ -308,7 +302,7 @@ function script:Quote-AdbShellArg([string]$Value) {
 # =============================================================================
 
 function script:Show-Unauthorized {
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     W-Box -Title ' USB Debugging — Brak autoryzacji ' -Col $script:C.Warn -Lines @(
         "Telefon wyświetla okno autoryzacji."
         ""
@@ -321,7 +315,7 @@ function script:Show-Unauthorized {
         "  Cofnij autoryzacje debugowania USB"
         "  i ponownie podłącz kabel."
     )
-    Write-PwtHost ""
+    [Console]::WriteLine("")
 }
 
 # =============================================================================
@@ -378,7 +372,7 @@ function script:Get-ScrcpyConfig {
 
 function script:Start-Streaming([string]$Serial) {
     if (-not $script:ScrcpyOk) {
-        Write-PwtHost ""
+        [Console]::WriteLine("")
         W-Err "scrcpy nie jest zainstalowane — streaming niedostępny."
         W-Dim "Instalacja: winget install Genymobile.scrcpy"
         return
@@ -393,10 +387,10 @@ function script:Start-Streaming([string]$Serial) {
     if ($cfg.AlwaysOnTop)    { $argv += '--always-on-top' }
     if ($cfg.RecordPath)     { $argv += @('--record', $cfg.RecordPath) }
 
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     W-Info "Uruchamiam scrcpy…"
     W-Dim  "scrcpy $($argv -join ' ')"
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     & scrcpy @argv
 }
 
@@ -408,7 +402,7 @@ function script:Get-ShellConfig {
     Cls
     W-Section "ADB Shell — Konfiguracja"
     $root   = (Prompt-Choice "Użytkownik powłoki:" @('Domyślny (shell)', 'Root (su)') -Default 1) -eq 2
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     $preCmd = Read-Host "  Polecenie wstępne (opcjonalnie, puste = zwykła powłoka)"
     $cwd    = Read-Host "  Katalog startowy [Enter=/sdcard]"
     if ([string]::IsNullOrWhiteSpace($cwd)) { $cwd = '/sdcard' }
@@ -423,10 +417,10 @@ function script:Start-Terminal([string]$Serial) {
     $parts += 'exec sh -i'
     $inner = $parts -join ' && '
 
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     W-Info "Uruchamiam powłokę ADB…"
     W-Dim  "Wpisz 'exit' aby wrócić."
-    Write-PwtHost ""
+    [Console]::WriteLine("")
 
     if ($cfg.Root) {
         # 'su 0 sh -c' działa zarówno z AOSP-su (emulator) jak i Magisk-su.
@@ -634,77 +628,61 @@ function script:Draw-FMFrame([bool]$LeftActive) {
     $PW = $script:FM.PW
     $H  = $script:FM.H
     $LH = $script:FM.ListH
+    $R  = $script:C.Reset
 
-    # Helper: draw a horizontal segment of length $n in a given color
-    function HBar([int]$Len, [ConsoleColor]$Col) {
-        [Console]::ForegroundColor = $Col
-        [Console]::Write($script:B.H * $Len)
-        [Console]::ResetColor()
-    }
-
-    $colL = if ($LeftActive)  { $script:C.FrameAct } else { $script:C.Frame }
+    $colL = if ($LeftActive)      { $script:C.FrameAct } else { $script:C.Frame }
     $colR = if (-not $LeftActive) { $script:C.FrameAct } else { $script:C.Frame }
+
+    function HBar([int]$Len, [string]$Col) {
+        [Console]::Write("$Col$($script:B.H * $Len)$($script:C.Reset)")
+    }
 
     # Row 0: top border  ╔══...══╦══...══╗
     Set-Cur 0 0
-    [Console]::ForegroundColor = $colL; [Console]::Write($script:B.TL)
+    [Console]::Write("$colL$($script:B.TL)$R")
     HBar ($PW - 1) $colL
-    [Console]::ForegroundColor = $script:C.Frame; [Console]::Write($script:B.TT)
+    [Console]::Write("$($script:C.Frame)$($script:B.TT)$R")
     HBar ($W - $PW - 2) $colR
-    [Console]::ForegroundColor = $colR; [Console]::Write($script:B.TR)
-    [Console]::ResetColor()
-
-    # Row 1: col header separator — ║ (sides only; content drawn by Draw-FMPane)
+    [Console]::Write("$colR$($script:B.TR)$R")
 
     # Row 2: separator  ╠══╬══╣
     Set-Cur 0 2
-    [Console]::ForegroundColor = $colL; [Console]::Write($script:B.LT)
+    [Console]::Write("$colL$($script:B.LT)$R")
     HBar ($PW - 1) $colL
-    [Console]::ForegroundColor = $script:C.Frame; [Console]::Write($script:B.XX)
+    [Console]::Write("$($script:C.Frame)$($script:B.XX)$R")
     HBar ($W - $PW - 2) $colR
-    [Console]::ForegroundColor = $colR; [Console]::Write($script:B.RT)
-    [Console]::ResetColor()
+    [Console]::Write("$colR$($script:B.RT)$R")
 
-    # Rows 3..(2+LH): side borders (║ on each side and divider in middle)
+    # Rows 3..(2+LH): side borders
     for ($y = 3; $y -lt 3 + $LH; $y++) {
-        Set-Cur 0 $y
-        [Console]::ForegroundColor = $colL; [Console]::Write($script:B.V)
-        Set-Cur ($PW) $y
-        [Console]::ForegroundColor = $script:C.Frame; [Console]::Write($script:B.V)
-        Set-Cur ($W - 1) $y
-        [Console]::ForegroundColor = $colR; [Console]::Write($script:B.V)
-        [Console]::ResetColor()
+        Set-Cur 0 $y;        [Console]::Write("$colL$($script:B.V)$R")
+        Set-Cur $PW $y;      [Console]::Write("$($script:C.Frame)$($script:B.V)$R")
+        Set-Cur ($W - 1) $y; [Console]::Write("$colR$($script:B.V)$R")
     }
 
     # Row H-6: footer separator  ╠══╬══╣
     $sepY = $H - 6
     Set-Cur 0 $sepY
-    [Console]::ForegroundColor = $colL; [Console]::Write($script:B.LT)
+    [Console]::Write("$colL$($script:B.LT)$R")
     HBar ($PW - 1) $colL
-    [Console]::ForegroundColor = $script:C.Frame; [Console]::Write($script:B.XX)
+    [Console]::Write("$($script:C.Frame)$($script:B.XX)$R")
     HBar ($W - $PW - 2) $colR
-    [Console]::ForegroundColor = $colR; [Console]::Write($script:B.RT)
-    [Console]::ResetColor()
+    [Console]::Write("$colR$($script:B.RT)$R")
 
     # Row H-5: footer line (sides + divider)
     $footY = $H - 5
-    Set-Cur 0 $footY
-    [Console]::ForegroundColor = $colL; [Console]::Write($script:B.V)
-    Set-Cur $PW $footY
-    [Console]::ForegroundColor = $script:C.Frame; [Console]::Write($script:B.V)
-    Set-Cur ($W - 1) $footY
-    [Console]::ForegroundColor = $colR; [Console]::Write($script:B.V)
-    [Console]::ResetColor()
+    Set-Cur 0 $footY;        [Console]::Write("$colL$($script:B.V)$R")
+    Set-Cur $PW $footY;      [Console]::Write("$($script:C.Frame)$($script:B.V)$R")
+    Set-Cur ($W - 1) $footY; [Console]::Write("$colR$($script:B.V)$R")
 
     # Row H-4: bottom border  ╚══╩══╝
     $botY = $H - 4
     Set-Cur 0 $botY
-    [Console]::ForegroundColor = $colL; [Console]::Write($script:B.BL)
+    [Console]::Write("$colL$($script:B.BL)$R")
     HBar ($PW - 1) $colL
-    [Console]::ForegroundColor = $script:C.Frame; [Console]::Write($script:B.BT)
+    [Console]::Write("$($script:C.Frame)$($script:B.BT)$R")
     HBar ($W - $PW - 2) $colR
-    [Console]::ForegroundColor = $colR; [Console]::Write($script:B.BR)
-    [Console]::ResetColor()
+    [Console]::Write("$colR$($script:B.BR)$R")
 }
 
 function script:Draw-FMPane($P, [int]$X, [bool]$Active) {
@@ -771,14 +749,11 @@ function script:Draw-FMPane($P, [int]$X, [bool]$Active) {
     Write-At $cx $footY (Fit $ftext $pw -Pad) $col
 }
 
-function script:Draw-FMStatus([string]$Msg = '', [ConsoleColor]$Fg = [ConsoleColor]::DarkGray) {
+function script:Draw-FMStatus([string]$Msg = '', [string]$Fg = $script:C.Muted) {
     $y   = $script:FM.H - 2
     $bar = (' ' + $Msg).PadRight($script:FM.W).Substring(0, $script:FM.W)
     Set-Cur 0 $y
-    [Console]::ForegroundColor = $Fg
-    [Console]::BackgroundColor = [ConsoleColor]::Black
-    [Console]::Write($bar)
-    [Console]::ResetColor()
+    [Console]::Write("$Fg$bar$($script:C.Reset)")
 }
 
 function script:Draw-FMFkeyBar {
@@ -789,21 +764,17 @@ function script:Draw-FMFkeyBar {
         @('F5', 'Copy'), @('F6', 'Move'), @('F7', 'MkDir'), @('F8', 'Del '),
         @('F9', '    '), @('F10', 'Quit')
     )
+    $R   = $script:C.Reset
+    $BB  = $script:C.FKeyBarBg
+    $Num = $script:C.FKeyNum
+    $Lbl = $script:C.FKeyFg
+    $LBg = $script:C.FKeyBg
     Set-Cur 0 $y
-    [Console]::BackgroundColor = [ConsoleColor]::DarkBlue
-    [Console]::Write(' ' * $W)
+    [Console]::Write("$BB$(' ' * $W)$R")
     Set-Cur 0 $y
     foreach ($k in $keys) {
-        [Console]::ForegroundColor = [ConsoleColor]::Yellow
-        [Console]::BackgroundColor = [ConsoleColor]::DarkBlue
-        [Console]::Write($k[0])
-        [Console]::ForegroundColor = [ConsoleColor]::White
-        [Console]::BackgroundColor = [ConsoleColor]::DarkCyan
-        [Console]::Write($k[1])
-        [Console]::BackgroundColor = [ConsoleColor]::DarkBlue
-        [Console]::Write(' ')
+        [Console]::Write("$BB$Num$($k[0])$R$LBg$Lbl$($k[1])$R$BB $R")
     }
-    [Console]::ResetColor()
 }
 
 function script:Draw-FMAll($L, $R, [bool]$LA) {
@@ -913,7 +884,7 @@ function script:Do-MkDir($P) {
 
 function script:Show-FMHelp {
     Cls
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     W-Box -Title '  ADB Transfer — Skróty klawiszowe  ' -Col $script:C.FrameAct -Lines @(
         "  NAWIGACJA"
         "    ↑ / ↓          Przesuń kursor"
@@ -938,8 +909,8 @@ function script:Show-FMHelp {
         "    F5/F6 działają tylko między panelami PC i Telefon."
         "    Element '..' nigdy nie jest kopiowany ani usuwany."
     )
-    Write-PwtHost ""
-    Write-PwtHost "  Naciśnij dowolny klawisz…" -ForegroundColor $script:C.Muted
+    [Console]::WriteLine("")
+    [Console]::WriteLine("  $($script:C.Muted)Naciśnij dowolny klawisz…$($script:C.Reset)")
     [Console]::ReadKey($true) | Out-Null
 }
 
@@ -1022,7 +993,7 @@ function script:Start-FileManager([string]$Serial, [string]$LocalPath, [string]$
 # =============================================================================
 
 function script:Select-Mode {
-    Write-PwtHost ""
+    [Console]::WriteLine("")
     $opts = @(
         "Streaming    — podgląd ekranu przez scrcpy"
         "Terminal     — powłoka adb shell"
@@ -1159,11 +1130,12 @@ function Invoke-PwtPhone {
         return
     }
 
-    Write-PwtHost ""
-    Write-PwtHost "  ╔══════════════════════════╗" -ForegroundColor $script:C.FrameAct
-    Write-PwtHost "  ║   ◈  pwt  phone  ◈       ║" -ForegroundColor $script:C.FrameAct
-    Write-PwtHost "  ╚══════════════════════════╝" -ForegroundColor $script:C.FrameAct
-    Write-PwtHost ""
+    $FA = $script:C.FrameAct; $R = $script:C.Reset
+    [Console]::WriteLine("")
+    [Console]::WriteLine("  $FA╔══════════════════════════╗$R")
+    [Console]::WriteLine("  $FA║   ◈  pwt  phone  ◈       ║$R")
+    [Console]::WriteLine("  $FA╚══════════════════════════╝$R")
+    [Console]::WriteLine("")
 
     if (-not (Test-Tool -Name 'adb' `
             -Description 'Android Debug Bridge — wymagany dla wszystkich operacji.' `
@@ -1238,10 +1210,10 @@ function Invoke-PwtPhone {
         # ── WI-FI ─────────────────────────────────────────────────────────────
         if ($Mode -eq 'Wifi') {
             W-Section "Wi-Fi"
-            Write-PwtHost ""
+            [Console]::WriteLine("")
             W-Warn "ADB przez Wi-Fi otwiera port sieciowy na telefonie."
             W-Warn "Używaj tylko w zaufanych sieciach!"
-            Write-PwtHost ""
+            [Console]::WriteLine("")
             W-Info "Szukam urządzenia USB do konfiguracji Wi-Fi…"
 
             $usb = @(Get-AdbDevices | Where-Object { $_.IsUSB -and $_.Ready })
@@ -1261,7 +1233,7 @@ function Invoke-PwtPhone {
             }
             if (-not $picked) { W-Err "Nie znaleziono urządzenia."; return }
             W-OK "Używam urządzenia: $($picked.Serial)"
-            Write-PwtHost ""
+            [Console]::WriteLine("")
 
             $tgtIp = if ($Ip) { $Ip } else { Get-PhoneIP -Serial $picked.Serial }
             if (-not $tgtIp) {
@@ -1277,17 +1249,17 @@ function Invoke-PwtPhone {
             }
             if (-not (Test-ValidIP $tgtIp)) { W-Err "Nieprawidłowy adres IP: $tgtIp"; return }
 
-            Write-PwtHost ""
+            [Console]::WriteLine("")
             W-Info "Przełączam urządzenie na tryb TCP/IP (port $Port)…"
             $r = Invoke-Adb -Argv @('-s', $picked.Serial, 'tcpip', $Port.ToString()) -AllowFail
-            Write-PwtHost ($r.Out -join "`n") -ForegroundColor $script:C.Muted
+            [Console]::WriteLine("$($script:C.Muted)$($r.Out -join "`n")$($script:C.Reset)")
             # Give the phone a moment to restart ADB in TCP mode
             Start-Sleep -Seconds 3
 
             $tgt = "${tgtIp}:${Port}"
             W-Info "Łączę z $tgt …"
             $r   = Invoke-Adb -Argv @('connect', $tgt) -AllowFail
-            Write-PwtHost ($r.Out -join "`n") -ForegroundColor $script:C.Muted
+            [Console]::WriteLine("$($script:C.Muted)$($r.Out -join "`n")$($script:C.Reset)")
 
             $out = $r.Out -join ''
             if (-not ($out -match 'connected to')) {
@@ -1302,7 +1274,7 @@ function Invoke-PwtPhone {
             }
 
             $script:LastWifi = $tgt
-            Write-PwtHost ""
+            [Console]::WriteLine("")
             W-OK "Możesz teraz odłączyć kabel USB."
 
             $sel = if ($ModeAction) { $ModeAction } else { Select-Mode }
@@ -1313,7 +1285,7 @@ function Invoke-PwtPhone {
     }
     finally {
         if (-not $NoCleanup -and $script:LastWifi) {
-            Write-PwtHost ""
+            [Console]::WriteLine("")
             W-Info "Przywracam ADB USB i rozłączam Wi-Fi ($($script:LastWifi))…"
             Invoke-Adb -Argv @('-s', $script:LastWifi, 'usb') -AllowFail | Out-Null
             Start-Sleep -Milliseconds 500
