@@ -1,5 +1,7 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 #requires -Version 7.0
+
+$script:ParseScriptsDir = $PSScriptRoot
 
 function Invoke-PwtParse {
 <#
@@ -59,8 +61,7 @@ function Invoke-PwtParse {
     $files = [System.Collections.Generic.List[string]]::new()
 
     if (-not $Path -or $Path.Count -eq 0) {
-        $scriptsDir = Split-Path -Parent $PSCommandPath
-        Get-ChildItem -Path $scriptsDir -Filter 'pwt-*.ps1' -File |
+        Get-ChildItem -Path $script:ParseScriptsDir -Filter 'pwt-*.ps1' -File |
             ForEach-Object { $files.Add($_.FullName) }
     }
     else {
@@ -73,9 +74,6 @@ function Invoke-PwtParse {
             }
             $item = Get-Item -LiteralPath $p
             if ($item.PSIsContainer) {
-                $opts = @{ Path = $item.FullName; File = $true; Include = '*.ps1', '*.psm1' }
-                if ($Recurse) { $opts.Recurse = $true }
-                # -Include needs a wildcard in -Path; switch strategy
                 $children = if ($Recurse) {
                     Get-ChildItem -Path $item.FullName -Recurse -File |
                         Where-Object { $_.Extension -in '.ps1', '.psm1' }
