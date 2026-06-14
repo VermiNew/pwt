@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 #requires -Version 7.0
 
 function Invoke-PwtYtDlp {
@@ -414,49 +414,49 @@ function Test-PwtYtDlpOptions {
     $mergeMode = $Mode -in @('VideoAudio', 'All')
 
     if ($BoundParameters.ContainsKey('AudioFormat') -and $Mode -ne 'OnlyAudio') {
-        $errors.Add("-AudioFormat działa tylko z -Mode OnlyAudio.")
+        $errors.Add("-AudioFormat only works with -Mode OnlyAudio.")
     }
     if ($BoundParameters.ContainsKey('Preset') -and $BoundParameters.ContainsKey('Mode')) {
-        $errors.Add("-Preset wybiera tryb samodzielnie; nie łącz go z -Mode.")
+        $errors.Add("-Preset selects the mode on its own; do not combine it with -Mode.")
     }
     if ($BoundParameters.ContainsKey('ArchiveFile') -and $Preset -ne 'Archive') {
-        $errors.Add("-ArchiveFile działa tylko z -Preset Archive.")
+        $errors.Add("-ArchiveFile only works with -Preset Archive.")
     }
     if ($Preset -eq 'Archive' -and [string]::IsNullOrWhiteSpace($ArchiveFile)) {
-        $errors.Add("-ArchiveFile nie może być puste dla -Preset Archive.")
+        $errors.Add("-ArchiveFile cannot be empty for -Preset Archive.")
     }
     if ($BoundParameters.ContainsKey('MergeFormat') -and -not $mergeMode) {
-        $errors.Add("-MergeFormat działa tylko z -Mode VideoAudio lub -Mode All.")
+        $errors.Add("-MergeFormat only works with -Mode VideoAudio or -Mode All.")
     }
     if ($BoundParameters.ContainsKey('SubLangs') -and -not $subtitleMode) {
-        $errors.Add("-SubLangs działa tylko z -Mode OnlySubtitles lub -Mode All.")
+        $errors.Add("-SubLangs only works with -Mode OnlySubtitles or -Mode All.")
     }
     if ($BoundParameters.ContainsKey('SubFormat') -and -not $subtitleMode) {
-        $errors.Add("-SubFormat działa tylko z -Mode OnlySubtitles lub -Mode All.")
+        $errors.Add("-SubFormat only works with -Mode OnlySubtitles or -Mode All.")
     }
     if ($BoundParameters.ContainsKey('NoAutoSubtitles') -and -not $subtitleMode) {
-        $errors.Add("-NoAutoSubtitles działa tylko z -Mode OnlySubtitles lub -Mode All.")
+        $errors.Add("-NoAutoSubtitles only works with -Mode OnlySubtitles or -Mode All.")
     }
     if ($BoundParameters.ContainsKey('EmbedSubtitles') -and $Mode -ne 'All') {
-        $errors.Add("-EmbedSubtitles działa tylko z -Mode All.")
+        $errors.Add("-EmbedSubtitles only works with -Mode All.")
     }
     if ($Mode -eq 'OnlySubtitles' -and $BoundParameters.ContainsKey('EmbedMetadata')) {
-        $errors.Add("-EmbedMetadata nie ma sensu z -Mode OnlySubtitles.")
+        $errors.Add("-EmbedMetadata has no effect with -Mode OnlySubtitles.")
     }
     if ($Mode -eq 'OnlySubtitles' -and $BoundParameters.ContainsKey('EmbedThumbnail')) {
-        $errors.Add("-EmbedThumbnail nie ma sensu z -Mode OnlySubtitles.")
+        $errors.Add("-EmbedThumbnail has no effect with -Mode OnlySubtitles.")
     }
     if ($mergeMode -and $MergeFormat -notmatch '^[A-Za-z0-9]+(/[A-Za-z0-9]+)*$') {
-        $errors.Add("-MergeFormat powinien wyglądać np. mp4, mkv albo mp4/mkv.")
+        $errors.Add("-MergeFormat should look like e.g. mp4, mkv or mp4/mkv.")
     }
     if ($subtitleMode -and [string]::IsNullOrWhiteSpace($SubLangs)) {
-        $errors.Add("-SubLangs nie może być puste w trybach napisów.")
+        $errors.Add("-SubLangs cannot be empty in subtitle modes.")
     }
     if ($subtitleMode -and [string]::IsNullOrWhiteSpace($SubFormat)) {
-        $errors.Add("-SubFormat nie może być puste w trybach napisów.")
+        $errors.Add("-SubFormat cannot be empty in subtitle modes.")
     }
     if ($ExtraArgs | Where-Object { [string]::IsNullOrWhiteSpace($_) }) {
-        $errors.Add("-ExtraArgs zawiera pusty argument.")
+        $errors.Add("-ExtraArgs contains an empty argument.")
     }
 
     if ($errors.Count -eq 0) {

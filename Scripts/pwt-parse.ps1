@@ -6,46 +6,46 @@ $script:ParseScriptsDir = $PSScriptRoot
 function Invoke-PwtParse {
 <#
 .SYNOPSIS
-    Sprawdź składnię plików .ps1 (PowerShell AST parser) bez ich uruchamiania.
+    Check the syntax of .ps1 files (PowerShell AST parser) without executing them.
 
 .DESCRIPTION
-    Statyczna walidacja: używa [System.Management.Automation.Language.Parser]
-    do parsowania pliku i raportuje błędy składniowe z numerem linii i kolumny.
-    Nigdy nie wykonuje kodu — bezpieczne dla nieznanych skryptów.
+    Static validation: uses [System.Management.Automation.Language.Parser]
+    to parse a file and reports syntax errors with line and column numbers.
+    Never executes code — safe for unknown scripts.
 
-    Bez argumentów sprawdza wszystkie pwt-*.ps1 w katalogu Scripts.
-    Z -Functions wypisuje listę funkcji top-level zdefiniowanych w pliku
-    (przydatne do szybkiego przeglądu struktury).
+    Without arguments, checks all pwt-*.ps1 files in the Scripts directory.
+    With -Functions, lists the top-level functions defined in each file
+    (useful for a quick structural overview).
 
-    Status końcowy: $LASTEXITCODE = liczba plików z błędami (0 = wszystko OK).
+    Exit status: $LASTEXITCODE = number of files with errors (0 = all OK).
 
 .PARAMETER Path
-    Plik .ps1 albo katalog. Można podać wiele. Domyślnie: cały Scripts/pwt-*.ps1.
+    A .ps1 file or directory. Multiple values accepted. Default: all Scripts/pwt-*.ps1.
 
 .PARAMETER Functions
-    Wypisz funkcje top-level zdefiniowane w każdym sprawdzanym pliku.
+    List top-level functions defined in each checked file.
 
 .PARAMETER Quiet
-    Bez wyjścia, tylko exit code (0 = OK, N = liczba plików z błędami).
+    No output, exit code only (0 = OK, N = number of files with errors).
 
 .PARAMETER Recurse
-    Dla katalogów: szukaj rekurencyjnie (domyślnie tylko bezpośrednio).
+    For directories: search recursively (default: top-level only).
 
 .EXAMPLE
     pwt parse
-    Sprawdź wszystkie pwt-*.ps1 w Scripts/.
+    Check all pwt-*.ps1 files in Scripts/.
 
 .EXAMPLE
     pwt parse .\Scripts\pwt-phone.ps1
-    Sprawdź konkretny plik.
+    Check a specific file.
 
 .EXAMPLE
     pwt parse .\Scripts\pwt-phone.ps1 -Functions
-    Sprawdź składnię + wypisz funkcje top-level.
+    Check syntax and list top-level functions.
 
 .EXAMPLE
     pwt parse .\Modules -Recurse
-    Sprawdź rekurencyjnie wszystkie .ps1/.psm1 w katalogu.
+    Recursively check all .ps1/.psm1 files in a directory.
 #>
     [CmdletBinding()]
     param(
@@ -92,7 +92,7 @@ function Invoke-PwtParse {
     if ($files.Count -eq 0) {
         if (-not $Quiet) {
             Write-PwtHost ""
-            Write-PwtHost "  Brak plików do sprawdzenia." -ForegroundColor Yellow
+            Write-PwtHost "  No files to check." -ForegroundColor Yellow
             Write-PwtHost ""
         }
         $global:LASTEXITCODE = 0
@@ -127,7 +127,7 @@ function Invoke-PwtParse {
         }
         Write-PwtHost $name.PadRight($maxName + 2) -NoNewline -ForegroundColor White
         if ($hasErrors) {
-            Write-PwtHost "$($errors.Count) błąd(ów)" -ForegroundColor Red
+            Write-PwtHost "$($errors.Count) error(s)" -ForegroundColor Red
         } else {
             Write-PwtHost "" -NoNewline
             Write-PwtHost ""
@@ -168,7 +168,7 @@ function Invoke-PwtParse {
         if ($failed -eq 0) {
             Write-PwtHost "  $ok/$total OK" -ForegroundColor Green
         } else {
-            Write-PwtHost "  $ok/$total OK, $failed z błędami" -ForegroundColor Yellow
+            Write-PwtHost "  $ok/$total OK, $failed with errors" -ForegroundColor Yellow
         }
         Write-PwtHost ""
     }
@@ -178,7 +178,6 @@ function Invoke-PwtParse {
 
 if (Get-Command Register-PwtCommand -ErrorAction SilentlyContinue) {
     Register-PwtCommand -Name 'parse' -Category 'dev' `
-        -Synopsis 'Sprawdź składnię plików .ps1 (AST parser, bez wykonania)' `
+        -Synopsis 'Check .ps1 file syntax (AST parser, no execution)' `
         -Function 'Invoke-PwtParse'
 }
-

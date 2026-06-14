@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 #requires -Version 7.0
 # NOTE: do NOT use '#Requires -RunAsAdministrator' here - it would prevent
 # the file from being dot-sourced into a non-admin profile. Admin check is

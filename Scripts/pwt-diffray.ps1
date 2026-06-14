@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 #requires -Version 7.0
 
 function Invoke-PwtDiffray {
@@ -101,9 +101,9 @@ function script:Invoke-PwtDiffrayReview {
 
         if ($files.Count -eq 0) {
             $msg = if ($changedOnly) {
-                'Brak zmienionych plików do sprawdzenia.'
+                'No changed files to review.'
             } else {
-                'Brak plików do sprawdzenia.'
+                'No files to review.'
             }
             Write-PwtHost $msg -ForegroundColor Yellow
             return
@@ -152,12 +152,12 @@ function script:Invoke-PwtDiffrayReview {
 
 function script:Get-PwtDiffrayGitRoot {
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        throw 'Git nie jest dostępny w PATH.'
+        throw 'Git is not available in PATH.'
     }
 
     $root = git rev-parse --show-toplevel 2>$null
     if (-not $root) {
-        throw 'Nie jesteś w repozytorium Git.'
+        throw 'Not inside a Git repository.'
     }
 
     return "$root".Trim()
@@ -202,8 +202,8 @@ function script:Join-PwtDiffrayFilesArgument {
     $bad = @($Files | Where-Object { $_ -match ',' })
     if ($bad.Count -gt 0) {
         Write-PwtHost ""
-        Write-PwtHost "  Diffray przyjmuje --files jako listę rozdzielaną przecinkami." -ForegroundColor Red
-        Write-PwtHost "  Te ścieżki zawierają przecinek i nie mogą być przekazane jednoznacznie:" -ForegroundColor Yellow
+        Write-PwtHost "  Diffray accepts --files as a comma-separated list." -ForegroundColor Red
+        Write-PwtHost "  The following paths contain a comma and cannot be passed unambiguously:" -ForegroundColor Yellow
         $bad | ForEach-Object { Write-PwtHost "    $_" -ForegroundColor White }
         Write-PwtHost ""
         return $null

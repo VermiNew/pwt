@@ -1,45 +1,46 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 #requires -Version 7.0
 
 function Invoke-PwtBom {
 <#
 .SYNOPSIS
-    Sprawdź (i opcjonalnie napraw) UTF-8 BOM (EF BB BF) w plikach .ps1 / .psm1.
+    Check (and optionally fix) UTF-8 BOM (EF BB BF) in .ps1 / .psm1 files.
 
 .DESCRIPTION
-    Skanuje wskazaną ścieżkę rekurencyjnie w poszukiwaniu plików .ps1 i .psm1,
-    raportuje obecność / brak UTF-8 BOM. Z flagą -Fix dopisuje brakujący BOM
-    na początek pliku (oryginalna treść jest zachowywana bajt-po-bajcie).
+    Recursively scans the specified path for .ps1 and .psm1 files,
+    reporting the presence / absence of UTF-8 BOM. With the -Fix flag, appends
+    the missing BOM to the beginning of the file (original content is preserved
+    byte-by-byte).
 
-    Bez argumentów skanuje katalog bieżący. Można wskazać pojedynczy plik
-    lub katalog.
+    Without arguments, scans the current directory. You can specify a single
+    file or a directory.
 
-    Status końcowy: $LASTEXITCODE = liczba plików bez BOM (0 = wszystko OK).
+    Exit status: $LASTEXITCODE = number of files without BOM (0 = all OK).
 
 .PARAMETER Path
-    Plik .ps1/.psm1 albo katalog (rekurencyjnie). Domyślnie: katalog bieżący.
+    A .ps1/.psm1 file or directory (recursively). Default: current directory.
 
 .PARAMETER Fix
-    Dopisz brakujący BOM do plików, w których go nie ma.
+    Add missing BOM to files that are missing it.
 
 .PARAMETER Quiet
-    Bez wyjścia, tylko exit code (0 = wszystkie OK, N = liczba bez BOM).
+    No output, exit code only (0 = all OK, N = number without BOM).
 
 .EXAMPLE
     pwt bom
-    Raport BOM dla wszystkich .ps1/.psm1 w katalogu bieżącym.
+    BOM report for all .ps1/.psm1 in the current directory.
 
 .EXAMPLE
     pwt bom -Fix
-    Raport + dopisanie brakującego BOM.
+    Report + add missing BOM.
 
 .EXAMPLE
     pwt bom .\Scripts\pwt-phone.ps1
-    Sprawdź pojedynczy plik.
+    Check a single file.
 
 .EXAMPLE
     pwt bom $PSScriptRoot -Fix
-    Napraw cały katalog profilu PowerShell.
+    Fix the entire PowerShell profile directory.
 #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -70,7 +71,7 @@ function Invoke-PwtBom {
     if ($files.Count -eq 0) {
         if (-not $Quiet) {
             Write-PwtHost ""
-            Write-PwtHost "  Brak plików .ps1 / .psm1 w: $resolved" -ForegroundColor Yellow
+            Write-PwtHost "  No .ps1 / .psm1 files found in: $resolved" -ForegroundColor Yellow
             Write-PwtHost ""
         }
         $global:LASTEXITCODE = 0
@@ -79,8 +80,8 @@ function Invoke-PwtBom {
 
     if (-not $Quiet) {
         Write-PwtHost ""
-        Write-PwtHost "  Skanowanie: $resolved" -ForegroundColor White
-        Write-PwtHost "  Plików: $($files.Count)" -ForegroundColor DarkGray
+        Write-PwtHost "  Scanning: $resolved" -ForegroundColor White
+        Write-PwtHost "  Files: $($files.Count)" -ForegroundColor DarkGray
         Write-PwtHost ""
     }
 
@@ -126,7 +127,7 @@ function Invoke-PwtBom {
                     $fixed++
                     if (-not $Quiet) {
                         Write-PwtHost "  [FIX]   " -ForegroundColor Cyan -NoNewline
-                        Write-PwtHost "Dodano BOM: $rel"
+                        Write-PwtHost "BOM added: $rel"
                     }
                 } catch {
                     $errors++
@@ -148,21 +149,20 @@ function Invoke-PwtBom {
     # ── Summary ───────────────────────────────────────────────────────────────
     if (-not $Quiet) {
         Write-PwtHost ""
-        Write-PwtHost ("  OK: $ok   bez BOM: $missing" + $(if ($Fix) { "   naprawione: $fixed" }) + $(if ($errors) { "   błędy: $errors" })) -ForegroundColor White
+        Write-PwtHost ("  OK: $ok   missing BOM: $missing" + $(if ($Fix) { "   fixed: $fixed" }) + $(if ($errors) { "   errors: $errors" })) -ForegroundColor White
         if ($missing -gt 0 -and -not $Fix) {
-            Write-PwtHost "  Uruchom 'pwt bom -Fix' aby dopisać brakujące BOM." -ForegroundColor DarkYellow
+            Write-PwtHost "  Run 'pwt bom -Fix' to add missing BOM." -ForegroundColor DarkYellow
         }
         Write-PwtHost ""
     }
 
-    # Po -Fix liczymy "remaining missing", nie pierwotne missing
+    # After -Fix, count "remaining missing", not original missing
     $remaining = if ($Fix) { $missing - $fixed } else { $missing }
     $global:LASTEXITCODE = $remaining + $errors
 }
 
 if (Get-Command Register-PwtCommand -ErrorAction SilentlyContinue) {
     Register-PwtCommand -Name 'bom' -Category 'dev' `
-        -Synopsis 'Sprawdź / napraw UTF-8 BOM w plikach .ps1 i .psm1' `
+        -Synopsis 'Check / fix UTF-8 BOM in .ps1 and .psm1 files' `
         -Function 'Invoke-PwtBom'
 }
-
