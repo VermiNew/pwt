@@ -401,12 +401,35 @@ function script:Start-Streaming([string]$Serial) {
 function script:Get-ShellConfig {
     Cls
     W-Section "ADB Shell — Konfiguracja"
-    $root   = (Prompt-Choice "Użytkownik powłoki:" @('Domyślny (shell)', 'Root (su)') -Default 1) -eq 2
+
+    $root = (Prompt-Choice "Użytkownik powłoki:" @('Domyślny (shell)', 'Root (su)') -Default 1) -eq 2
+
+    $shellChoice = Prompt-Choice "Powłoka:" @(
+        'sh  (domyślna, zawsze dostępna)'
+        'bash  (jeśli zainstalowana)'
+        'zsh   (jeśli zainstalowana)'
+    ) -Default 1
+    $shell = @('sh', 'bash', 'zsh')[$shellChoice - 1]
+
+    $termChoice = Prompt-Choice "Emulacja terminala (TERM):" @(
+        'xterm-256color  (zalecane)'
+        'xterm'
+        'dumb  (bez kolorów)'
+    ) -Default 1
+    $term = @('xterm-256color', 'xterm', 'dumb')[$termChoice - 1]
+
     [Console]::WriteLine("")
-    $preCmd = Read-Host "  Polecenie wstępne (opcjonalnie, puste = zwykła powłoka)"
+    $preCmd = Read-Host "  Polecenie wstępne (opcjonalnie)"
     $cwd    = Read-Host "  Katalog startowy [Enter=/sdcard]"
     if ([string]::IsNullOrWhiteSpace($cwd)) { $cwd = '/sdcard' }
-    return [PSCustomObject]@{ Root = $root; PreCmd = $preCmd; Cwd = $cwd }
+
+    return [PSCustomObject]@{
+        Root   = $root
+        Shell  = $shell
+        Term   = $term
+        PreCmd = $preCmd
+        Cwd    = $cwd
+    }
 }
 
 function script:Start-Terminal([string]$Serial) {
@@ -414,11 +437,12 @@ function script:Start-Terminal([string]$Serial) {
     $parts = @()
     if ($cfg.Cwd)    { $parts += "cd $(Quote-AdbShellArg $cfg.Cwd)" }
     if ($cfg.PreCmd) { $parts += $cfg.PreCmd }
-    $parts += 'exec sh -i'
+    $parts += "export TERM=$($cfg.Term)"
+    $parts += "exec $($cfg.Shell) -i"
     $inner = $parts -join ' && '
 
     [Console]::WriteLine("")
-    W-Info "Uruchamiam powłokę ADB…"
+    W-Info "Uruchamiam powłokę ADB ($($cfg.Shell), TERM=$($cfg.Term))…"
     W-Dim  "Wpisz 'exit' aby wrócić."
     [Console]::WriteLine("")
 
@@ -427,11 +451,8 @@ function script:Start-Terminal([string]$Serial) {
         # Składnia 'su -c' bywa niekompatybilna (AOSP traktuje '-c' jako UID).
         & adb -s $Serial shell -t "su 0 sh -c `"$inner`""
     }
-    elseif ($cfg.PreCmd -or $cfg.Cwd) {
-        & adb -s $Serial shell -t $inner
-    }
     else {
-        & adb -s $Serial shell
+        & adb -s $Serial shell -t $inner
     }
 }
 
