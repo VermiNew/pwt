@@ -1,0 +1,7 @@
+# Personal notes
+Documents/notes.md
+
+# Editor artifacts
+*.suo
+*.user
+.vs/
