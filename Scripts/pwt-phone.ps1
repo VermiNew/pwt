@@ -113,17 +113,17 @@ function script:Prompt-Choice {
     }
     [Console]::WriteLine("")
     do {
-        $r  = Read-Host "  Wybór [Enter=$Default]"
+        $r  = Read-Host "  Choice [Enter=$Default]"
         if ([string]::IsNullOrWhiteSpace($r)) { return $Default }
         $n  = 0
         $ok = [int]::TryParse($r, [ref]$n) -and $n -ge 1 -and $n -le $Options.Count
-        if (-not $ok) { W-Err "Podaj liczbę 1–$($Options.Count)" }
+        if (-not $ok) { W-Err "Enter a number 1–$($Options.Count)" }
     } while (-not $ok)
     return $n
 }
 
 function script:Prompt-YN([string]$Q, [bool]$Default = $true) {
-    $hint = if ($Default) { 'T/n' } else { 't/N' }
+    $hint = if ($Default) { 'Y/n' } else { 'y/N' }
     [Console]::Write("  $($script:C.Warn)$Q $($script:C.Muted)($hint) $($script:C.Reset)")
     $r = Read-Host
     if ([string]::IsNullOrWhiteSpace($r)) { return $Default }
@@ -138,10 +138,10 @@ function script:Test-Tool {
     param([string]$Name, [string]$Description, [string]$Winget, [string]$Url)
     if (Get-Command $Name -ErrorAction SilentlyContinue) { return $true }
     [Console]::WriteLine("")
-    W-Err "$Name nie znaleziono w PATH."
+    W-Err "$Name not found in PATH."
     W-Dim $Description
-    if ($Winget) { W-Dim "  Instalacja:  winget install $Winget" }
-    if ($Url)    { W-Dim "  Pobierz: $Url" }
+    if ($Winget) { W-Dim "  Install:  winget install $Winget" }
+    if ($Url)    { W-Dim "  Download: $Url" }
     [Console]::WriteLine("")
     return $false
 }
@@ -185,7 +185,7 @@ function script:Show-PwtPhoneStatus {
 
     if (-not $adb) {
         Test-Tool -Name 'adb' `
-            -Description 'Android Debug Bridge — wymagany dla wszystkich operacji.' `
+            -Description 'Android Debug Bridge — required for all operations.' `
             -Winget 'Google.PlatformTools' `
             -Url 'https://developer.android.com/studio/releases/platform-tools' | Out-Null
         $global:LASTEXITCODE = 1
@@ -196,7 +196,7 @@ function script:Show-PwtPhoneStatus {
     $devices = @(Get-AdbDevices)
 
     if ($devices.Count -eq 0) {
-        W-Warn "Brak urządzeń w adb devices."
+        W-Warn "No devices found in adb devices."
         $global:LASTEXITCODE = 0
         return
     }
@@ -221,7 +221,7 @@ function script:Show-PwtPhoneStatus {
             }
         }
         elseif ($d.Unauthorized) {
-            W-Dim "  Autoryzuj debugowanie USB na ekranie telefonu."
+            W-Dim "  Authorize USB debugging on the phone screen."
         }
     }
     [Console]::WriteLine("")
@@ -261,7 +261,7 @@ function script:Get-AdbDevices {
 }
 
 function script:Get-PhoneIP([string]$Serial) {
-    W-Info "Wykrywam adres IP telefonu…"
+    W-Info "Detecting phone IP address…"
     $base = if ($Serial) { @('-s', $Serial, 'shell') } else { @('shell') }
     # FIX: added sed-based fallbacks for Android without grep -P
     $cmds = @(
@@ -303,17 +303,17 @@ function script:Quote-AdbShellArg([string]$Value) {
 
 function script:Show-Unauthorized {
     [Console]::WriteLine("")
-    W-Box -Title ' USB Debugging — Brak autoryzacji ' -Col $script:C.Warn -Lines @(
-        "Telefon wyświetla okno autoryzacji."
+    W-Box -Title ' USB Debugging — Not Authorized ' -Col $script:C.Warn -Lines @(
+        "The phone is showing an authorization dialog."
         ""
-        "  1. Spójrz na ekran telefonu"
-        "  2. Kliknij  Zezwól  na 'Zezwolić na debugowanie USB?'"
-        "  3. Zaznacz 'Zawsze zezwalaj z tego komputera'"
+        "  1. Look at the phone screen"
+        "  2. Tap  Allow  on 'Allow USB debugging?'"
+        "  3. Check 'Always allow from this computer'"
         ""
-        "Jeśli okno nie pojawia się:"
-        "  Ustawienia → Opcje programisty →"
-        "  Cofnij autoryzacje debugowania USB"
-        "  i ponownie podłącz kabel."
+        "If the dialog does not appear:"
+        "  Settings → Developer options →"
+        "  Revoke USB debugging authorizations"
+        "  and reconnect the cable."
     )
     [Console]::WriteLine("")
 }
@@ -324,38 +324,38 @@ function script:Show-Unauthorized {
 
 function script:Get-ScrcpyConfig {
     Cls
-    W-Section "scrcpy Streaming — Konfiguracja"
+    W-Section "scrcpy Streaming — Configuration"
 
-    $maxSizeChoice = Prompt-Choice "Maksymalna rozdzielczość (dłuższy bok):" @(
-        'Natywna (bez limitu)'
+    $maxSizeChoice = Prompt-Choice "Maximum resolution (longer side):" @(
+        'Native (no limit)'
         '1920 px'
         '1280 px'
         '1024 px'
         '800 px'
-        'Własna…'
+        'Custom…'
     ) -Default 1
     $maxSize = switch ($maxSizeChoice) {
         2 { '1920' } 3 { '1280' } 4 { '1024' } 5 { '800' }
-        6 { $v = Read-Host "  Rozmiar (px)"; if ($v -match '^\d+$') { $v } else { '0' } }
+        6 { $v = Read-Host "  Size (px)"; if ($v -match '^\d+$') { $v } else { '0' } }
         default { '0' }
     }
 
-    $brChoice = Prompt-Choice "Bitrate video:" @('2 Mbps', '4 Mbps', '8 Mbps (domyślnie)', '16 Mbps', '32 Mbps', 'Własny…') -Default 3
+    $brChoice = Prompt-Choice "Video bitrate:" @('2 Mbps', '4 Mbps', '8 Mbps (default)', '16 Mbps', '32 Mbps', 'Custom…') -Default 3
     $bitrate  = switch ($brChoice) {
         1 { '2M' } 2 { '4M' } 4 { '16M' } 5 { '32M' }
-        6 { $v = Read-Host "  Własny (np. 6M)"; if ($v) { $v } else { '8M' } }
+        6 { $v = Read-Host "  Custom (e.g. 6M)"; if ($v) { $v } else { '8M' } }
         default { '8M' }
     }
 
-    $audio     = (Prompt-Choice "Przekazywanie dźwięku:" @('Włączone (domyślnie)', 'Wyłączone') -Default 1) -eq 1
-    $noControl = (Prompt-Choice "Tryb sterowania:" @('Pełna kontrola (domyślnie)', 'Tylko podgląd') -Default 1) -eq 2
-    $stayAwake = (Prompt-Choice "Ekran aktywny podczas połączenia:" @('Tak (domyślnie)', 'Nie') -Default 1) -eq 1
-    $alwaysTop = (Prompt-Choice "Okno zawsze na wierzchu:" @('Nie (domyślnie)', 'Tak') -Default 1) -eq 2
+    $audio     = (Prompt-Choice "Audio forwarding:" @('Enabled (default)', 'Disabled') -Default 1) -eq 1
+    $noControl = (Prompt-Choice "Control mode:" @('Full control (default)', 'View only') -Default 1) -eq 2
+    $stayAwake = (Prompt-Choice "Keep screen on during connection:" @('Yes (default)', 'No') -Default 1) -eq 1
+    $alwaysTop = (Prompt-Choice "Window always on top:" @('No (default)', 'Yes') -Default 1) -eq 2
 
     $recordPath = $null
-    if ((Prompt-Choice "Nagrywaj sesję:" @('Nie (domyślnie)', 'Tak') -Default 1) -eq 2) {
+    if ((Prompt-Choice "Record session:" @('No (default)', 'Yes') -Default 1) -eq 2) {
         $def        = "scrcpy-$(Get-Date -Format 'yyyyMMdd-HHmmss').mp4"
-        $p          = Read-Host "  Ścieżka zapisu [$def]"
+        $p          = Read-Host "  Save path [$def]"
         $recordPath = if ([string]::IsNullOrWhiteSpace($p)) { $def } else { $p }
     }
 
@@ -373,8 +373,8 @@ function script:Get-ScrcpyConfig {
 function script:Start-Streaming([string]$Serial) {
     if (-not $script:ScrcpyOk) {
         [Console]::WriteLine("")
-        W-Err "scrcpy nie jest zainstalowane — streaming niedostępny."
-        W-Dim "Instalacja: winget install Genymobile.scrcpy"
+        W-Err "scrcpy is not installed — streaming unavailable."
+        W-Dim "Install: winget install Genymobile.scrcpy"
         return
     }
     $cfg  = Get-ScrcpyConfig
@@ -388,7 +388,7 @@ function script:Start-Streaming([string]$Serial) {
     if ($cfg.RecordPath)     { $argv += @('--record', $cfg.RecordPath) }
 
     [Console]::WriteLine("")
-    W-Info "Uruchamiam scrcpy…"
+    W-Info "Starting scrcpy…"
     W-Dim  "scrcpy $($argv -join ' ')"
     [Console]::WriteLine("")
     & scrcpy @argv
@@ -400,27 +400,27 @@ function script:Start-Streaming([string]$Serial) {
 
 function script:Get-ShellConfig {
     Cls
-    W-Section "ADB Shell — Konfiguracja"
+    W-Section "ADB Shell — Configuration"
 
-    $root = (Prompt-Choice "Użytkownik powłoki:" @('Domyślny (shell)', 'Root (su)') -Default 1) -eq 2
+    $root = (Prompt-Choice "Shell user:" @('Default (shell)', 'Root (su)') -Default 1) -eq 2
 
-    $shellChoice = Prompt-Choice "Powłoka:" @(
-        'sh  (domyślna, zawsze dostępna)'
-        'bash  (jeśli zainstalowana)'
-        'zsh   (jeśli zainstalowana)'
+    $shellChoice = Prompt-Choice "Shell:" @(
+        'sh  (default, always available)'
+        'bash  (if installed)'
+        'zsh   (if installed)'
     ) -Default 1
     $shell = @('sh', 'bash', 'zsh')[$shellChoice - 1]
 
-    $termChoice = Prompt-Choice "Emulacja terminala (TERM):" @(
-        'xterm-256color  (zalecane)'
+    $termChoice = Prompt-Choice "Terminal emulation (TERM):" @(
+        'xterm-256color  (recommended)'
         'xterm'
-        'dumb  (bez kolorów)'
+        'dumb  (no colors)'
     ) -Default 1
     $term = @('xterm-256color', 'xterm', 'dumb')[$termChoice - 1]
 
     [Console]::WriteLine("")
-    $preCmd = Read-Host "  Polecenie wstępne (opcjonalnie)"
-    $cwd    = Read-Host "  Katalog startowy [Enter=/sdcard]"
+    $preCmd = Read-Host "  Initial command (optional)"
+    $cwd    = Read-Host "  Start directory [Enter=/sdcard]"
     if ([string]::IsNullOrWhiteSpace($cwd)) { $cwd = '/sdcard' }
 
     return [PSCustomObject]@{
@@ -442,13 +442,13 @@ function script:Start-Terminal([string]$Serial) {
     $inner = $parts -join ' && '
 
     [Console]::WriteLine("")
-    W-Info "Uruchamiam powłokę ADB ($($cfg.Shell), TERM=$($cfg.Term))…"
-    W-Dim  "Wpisz 'exit' aby wrócić."
+    W-Info "Starting ADB shell ($($cfg.Shell), TERM=$($cfg.Term))…"
+    W-Dim  "Type 'exit' to return."
     [Console]::WriteLine("")
 
     if ($cfg.Root) {
-        # 'su 0 sh -c' działa zarówno z AOSP-su (emulator) jak i Magisk-su.
-        # Składnia 'su -c' bywa niekompatybilna (AOSP traktuje '-c' jako UID).
+        # 'su 0 sh -c' works with both AOSP-su (emulator) and Magisk-su.
+        # The 'su -c' syntax can be incompatible (AOSP treats '-c' as a UID).
         & adb -s $Serial shell -t "su 0 sh -c `"$inner`""
     }
     else {
@@ -618,7 +618,7 @@ function script:Test-FMConsoleSize {
         $h = [Console]::WindowHeight
     }
     catch {
-        if ($ShowMessage) { W-Err "Nie można odczytać rozmiaru terminala." }
+        if ($ShowMessage) { W-Err "Cannot read terminal size." }
         return $false
     }
 
@@ -626,10 +626,10 @@ function script:Test-FMConsoleSize {
 
     if ($ShowMessage) {
         Cls
-        W-Box -Title ' Terminal za mały ' -Col $script:C.Warn -Lines @(
-            "Menedżer plików wymaga minimum $($script:FM.MinW)x$($script:FM.MinH)."
-            "Aktualny rozmiar terminala: ${w}x${h}."
-            "Powiększ okno i uruchom ponownie tryb Transfer."
+        W-Box -Title ' Terminal too small ' -Col $script:C.Warn -Lines @(
+            "File manager requires at least $($script:FM.MinW)x$($script:FM.MinH)."
+            "Current terminal size: ${w}x${h}."
+            "Resize the window and restart Transfer mode."
         )
     }
     return $false
@@ -730,7 +730,7 @@ function script:Draw-FMPane($P, [int]$X, [bool]$Active) {
 
     # Row 1: column headers
     $nw  = $pw - 27; if ($nw -lt 4) { $nw = 4 }
-    $hdr = ('{0,-' + $nw + '} {1,8}  {2,16}') -f 'Nazwa', 'Rozmiar', 'Data modyfikacji'
+    $hdr = ('{0,-' + $nw + '} {1,8}  {2,16}') -f 'Name', 'Size', 'Date modified'
     Write-At $cx 1 ($hdr.PadRight($pw).Substring(0, $pw)) $script:C.Header
 
     # Error state
@@ -766,7 +766,7 @@ function script:Draw-FMPane($P, [int]$X, [bool]$Active) {
     $cnt    = $P.Entries.Count - 1
     $total  = ($P.Entries | Where-Object { -not $_.IsParent -and -not $_.IsDir } |
                Measure-Object -Property Size -Sum).Sum ?? 0
-    $ftext  = " $cnt element$(if($cnt -ne 1){'ów'})  $(Fmt-Bytes $total) "
+    $ftext  = " $cnt item$(if($cnt -ne 1){'s'})  $(Fmt-Bytes $total) "
     Write-At $cx $footY (Fit $ftext $pw -Pad) $col
 }
 
@@ -805,7 +805,7 @@ function script:Draw-FMAll($L, $R, [bool]$LA) {
     Draw-FMPane -P $L -X 0             -Active $LA
     Draw-FMPane -P $R -X $script:FM.PW -Active (-not $LA)
     Draw-FMFkeyBar
-    Draw-FMStatus ' Gotowy  ·  Tab=przełącz panel  ·  F1=pomoc  ·  Q=wyjście' $script:C.Muted
+    Draw-FMStatus ' Ready  ·  Tab=switch panel  ·  F1=help  ·  Q=quit' $script:C.Muted
 }
 
 # ── Status helpers (in-TUI) ───────────────────────────────────────────────────
@@ -833,17 +833,17 @@ function script:Get-CurEntry($P) {
 
 function script:Do-Transfer([string]$Op, $From, $To, $Entry) {
     if ($From.IsRemote -eq $To.IsRemote) {
-        FM-Err "Obydwa panele po tej samej stronie — nie można $Op."
+        FM-Err "Both panels are on the same side — cannot $Op."
         return $false
     }
     $name = $Entry.Name
     if ($From.IsRemote) {
         $src = ($From.Path.TrimEnd('/')) + '/' + $name
         $dst = Join-Path $To.Path $name
-        FM-Info "Pobieranie  $name …"
+        FM-Info "Downloading  $name …"
         $r = Invoke-Adb -Argv @('-s', $From.Serial, 'pull', $src, $dst) -AllowFail
-        if (-not $r.OK) { FM-Err "Pull nieudany: $($r.Out | Select-Object -Last 1)"; return $false }
-        if ($Op -eq 'Przeniesienie') {
+        if (-not $r.OK) { FM-Err "Pull failed: $($r.Out | Select-Object -Last 1)"; return $false }
+        if ($Op -eq 'Move') {
             $rm = if ($Entry.IsDir) { 'rm -rf' } else { 'rm -f' }
             Invoke-Adb -Argv @('-s', $From.Serial, 'shell', "$rm $(Quote-AdbShellArg $src)") -AllowFail | Out-Null
         }
@@ -851,29 +851,29 @@ function script:Do-Transfer([string]$Op, $From, $To, $Entry) {
     else {
         $src = Join-Path $From.Path $name
         $dst = ($To.Path.TrimEnd('/')) + '/' + $name
-        FM-Info "Wysyłanie  $name …"
+        FM-Info "Uploading  $name …"
         $r = Invoke-Adb -Argv @('-s', $To.Serial, 'push', $src, $dst) -AllowFail
-        if (-not $r.OK) { FM-Err "Push nieudany: $($r.Out | Select-Object -Last 1)"; return $false }
-        if ($Op -eq 'Przeniesienie') {
+        if (-not $r.OK) { FM-Err "Push failed: $($r.Out | Select-Object -Last 1)"; return $false }
+        if ($Op -eq 'Move') {
             if ($Entry.IsDir) { Remove-Item -LiteralPath $src -Recurse -Force -EA SilentlyContinue }
             else               { Remove-Item -LiteralPath $src -Force -EA SilentlyContinue }
         }
     }
-    FM-OK "$Op zakończony: $name"
+    FM-OK "$Op completed: $name"
     return $true
 }
 
 function script:Do-Delete($P, $Entry) {
-    $conf = FM-Prompt " Usunąć '$($Entry.Name)' ? (t/N)  "
+    $conf = FM-Prompt " Delete '$($Entry.Name)' ? (y/N)  "
     if ($conf -notin @('t', 'T', 'y', 'Y')) {
-        Draw-FMStatus ' Anulowano' $script:C.Muted
+        Draw-FMStatus ' Cancelled' $script:C.Muted
         return $false
     }
     if ($P.IsRemote) {
         $path = ($P.Path.TrimEnd('/')) + '/' + $Entry.Name
         $rm   = if ($Entry.IsDir) { 'rm -rf' } else { 'rm -f' }
         $r    = Invoke-Adb -Argv @('-s', $P.Serial, 'shell', "$rm $(Quote-AdbShellArg $path)") -AllowFail
-        if (-not $r.OK) { FM-Err "Usuwanie nieudane"; return $false }
+        if (-not $r.OK) { FM-Err "Delete failed"; return $false }
     }
     else {
         $path = Join-Path $P.Path $Entry.Name
@@ -883,22 +883,22 @@ function script:Do-Delete($P, $Entry) {
         }
         catch { FM-Err $_.Exception.Message; return $false }
     }
-    FM-OK "Usunięto: $($Entry.Name)"; return $true
+    FM-OK "Deleted: $($Entry.Name)"; return $true
 }
 
 function script:Do-MkDir($P) {
-    $name = FM-Prompt ' Nazwa nowego folderu:  '
-    if (-not $name) { Draw-FMStatus ' Anulowano' $script:C.Muted; return $false }
+    $name = FM-Prompt ' New folder name:  '
+    if (-not $name) { Draw-FMStatus ' Cancelled' $script:C.Muted; return $false }
     if ($P.IsRemote) {
         $path = ($P.Path.TrimEnd('/')) + '/' + $name
         $r    = Invoke-Adb -Argv @('-s', $P.Serial, 'shell', "mkdir -p $(Quote-AdbShellArg $path)") -AllowFail
-        if (-not $r.OK) { FM-Err "mkdir nieudany"; return $false }
+        if (-not $r.OK) { FM-Err "mkdir failed"; return $false }
     }
     else {
         try { New-Item -ItemType Directory -Path (Join-Path $P.Path $name) -Force | Out-Null }
         catch { FM-Err $_.Exception.Message; return $false }
     }
-    FM-OK "Utworzono: $name"; return $true
+    FM-OK "Created: $name"; return $true
 }
 
 # ── Help overlay ──────────────────────────────────────────────────────────────
@@ -906,32 +906,32 @@ function script:Do-MkDir($P) {
 function script:Show-FMHelp {
     Cls
     [Console]::WriteLine("")
-    W-Box -Title '  ADB Transfer — Skróty klawiszowe  ' -Col $script:C.FrameAct -Lines @(
-        "  NAWIGACJA"
-        "    ↑ / ↓          Przesuń kursor"
-        "    PgUp / PgDn    Przewiń o jedną stronę"
-        "    Home / End     Pierwszy / ostatni element"
-        "    Enter          Otwórz folder (lub '..' — wyjdź)"
-        "    Backspace      Wyjdź o jeden poziom wyżej"
-        "    Tab            Przełącz aktywny panel (Lokalny ↔ Telefon)"
+    W-Box -Title '  ADB Transfer — Keyboard Shortcuts  ' -Col $script:C.FrameAct -Lines @(
+        "  NAVIGATION"
+        "    ↑ / ↓          Move cursor"
+        "    PgUp / PgDn    Scroll one page"
+        "    Home / End     First / last item"
+        "    Enter          Open folder (or '..' — go up)"
+        "    Backspace      Go up one level"
+        "    Tab            Switch active panel (Local ↔ Phone)"
         ""
-        "  OPERACJE NA PLIKACH"
-        "    F5             Kopiuj do drugiego panelu"
-        "    F6             Przenieś do drugiego panelu"
-        "    F7             Utwórz nowy folder"
-        "    F8             Usuń (z potwierdzeniem)"
+        "  FILE OPERATIONS"
+        "    F5             Copy to the other panel"
+        "    F6             Move to the other panel"
+        "    F7             Create new folder"
+        "    F8             Delete (with confirmation)"
         ""
-        "  INNE"
-        "    R              Odśwież aktywny panel"
-        "    F1             Ten ekran pomocy"
-        "    Q / Esc        Wyjdź z menedżera plików"
+        "  OTHER"
+        "    R              Refresh active panel"
+        "    F1             This help screen"
+        "    Q / Esc        Quit file manager"
         ""
-        "  UWAGI"
-        "    F5/F6 działają tylko między panelami PC i Telefon."
-        "    Element '..' nigdy nie jest kopiowany ani usuwany."
+        "  NOTES"
+        "    F5/F6 only work between the PC and Phone panels."
+        "    The '..' entry is never copied or deleted."
     )
     [Console]::WriteLine("")
-    [Console]::WriteLine("  $($script:C.Muted)Naciśnij dowolny klawisz…$($script:C.Reset)")
+    [Console]::WriteLine("  $($script:C.Muted)Press any key…$($script:C.Reset)")
     [Console]::ReadKey($true) | Out-Null
 }
 
@@ -944,8 +944,8 @@ function script:Start-FileManager([string]$Serial, [string]$LocalPath, [string]$
     try { $oldVis = [Console]::CursorVisible } catch {}
 
     try {
-        $L  = New-Pane -Label 'Lokalny PC'  -IsRemote $false -Path $LocalPath  -Serial $Serial
-        $R  = New-Pane -Label 'Telefon'     -IsRemote $true  -Path $RemotePath -Serial $Serial
+        $L  = New-Pane -Label 'Local PC'  -IsRemote $false -Path $LocalPath  -Serial $Serial
+        $R  = New-Pane -Label 'Phone'     -IsRemote $true  -Path $RemotePath -Serial $Serial
         $LA = $true
 
         Draw-FMAll $L $R $LA
@@ -972,25 +972,25 @@ function script:Start-FileManager([string]$Serial, [string]$LocalPath, [string]$
                 'Backspace' { Nav-Up -P $A }
                 'F5' {
                     $e = Get-CurEntry $A
-                    if ($e) { if (Do-Transfer -Op 'Kopia' -From $A -To $O -Entry $e) { Update-Pane $O } }
-                    else    { FM-Err 'Brak zaznaczonego elementu.' }
+                    if ($e) { if (Do-Transfer -Op 'Copy' -From $A -To $O -Entry $e) { Update-Pane $O } }
+                    else    { FM-Err 'No item selected.' }
                 }
                 'F6' {
                     $e = Get-CurEntry $A
                     if ($e) {
-                        if (Do-Transfer -Op 'Przeniesienie' -From $A -To $O -Entry $e) {
+                        if (Do-Transfer -Op 'Move' -From $A -To $O -Entry $e) {
                             Update-Pane $A; Update-Pane $O
                         }
                     }
-                    else { FM-Err 'Brak zaznaczonego elementu.' }
+                    else { FM-Err 'No item selected.' }
                 }
                 'F7' { if (Do-MkDir -P $A) { Update-Pane $A } }
                 'F8' {
                     $e = Get-CurEntry $A
                     if ($e) { if (Do-Delete -P $A -Entry $e) { Update-Pane $A } }
-                    else    { FM-Err 'Brak zaznaczonego elementu.' }
+                    else    { FM-Err 'No item selected.' }
                 }
-                'R'  { FM-Info 'Odświeżanie…'; Update-Pane $A }
+                'R'  { FM-Info 'Refreshing…'; Update-Pane $A }
                 'F1' { Show-FMHelp }
                 { $_ -in @('Q', 'Escape', 'F10') } { return }
                 default { $redraw = $false }
@@ -1037,16 +1037,16 @@ function script:Find-WinScp {
 function script:Start-WinScp([string]$Serial) {
     if (-not $script:WinScpOk) {
         [Console]::WriteLine("")
-        W-Err "WinSCP nie znalezione."
-        W-Dim "Pobierz: https://winscp.net"
-        W-Dim "Lub zainstaluj: winget install WinSCP.WinSCP"
+        W-Err "WinSCP not found."
+        W-Dim "Download: https://winscp.net"
+        W-Dim "Or install: winget install WinSCP.WinSCP"
         [Console]::WriteLine("")
         return
     }
 
     [Console]::WriteLine("")
-    W-Info "Uruchamiam WinSCP z połączeniem ADB (SCP over adb)…"
-    W-Dim  "Używam: $($script:WinScpPath)"
+    W-Info "Starting WinSCP with ADB connection (SCP over adb)…"
+    W-Dim  "Using: $($script:WinScpPath)"
     [Console]::WriteLine("")
 
     # WinSCP supports SCP via 'adb' protocol using the local ADB server.
@@ -1056,7 +1056,7 @@ function script:Start-WinScp([string]$Serial) {
         & $script:WinScpPath $url
     }
     catch {
-        W-Err "Nie udało się uruchomić WinSCP: $($_.Exception.Message)"
+        W-Err "Failed to start WinSCP: $($_.Exception.Message)"
     }
 }
 
@@ -1073,69 +1073,69 @@ function script:Get-InstalledApps([string]$Serial, [switch]$ThirdParty) {
 
 function script:Start-AppManager([string]$Serial) {
     Cls
-    W-Section "Menedżer aplikacji"
+    W-Section "App Manager"
 
     while ($true) {
-        $action = Prompt-Choice "Operacja:" @(
-            "Lista aplikacji firm trzecich"
-            "Lista wszystkich aplikacji"
-            "Zainstaluj APK z dysku"
-            "Odinstaluj aplikację"
-            "Wyczyść dane aplikacji"
-            "Wymuś zatrzymanie aplikacji"
-            "Wyjście"
+        $action = Prompt-Choice "Operation:" @(
+            "List third-party apps"
+            "List all apps"
+            "Install APK from disk"
+            "Uninstall app"
+            "Clear app data"
+            "Force-stop app"
+            "Exit"
         ) -Default 1
 
         switch ($action) {
             1 {
-                W-Info "Pobieranie listy aplikacji…"
+                W-Info "Fetching app list…"
                 $apps = Get-InstalledApps -Serial $Serial -ThirdParty
-                if ($apps.Count -eq 0) { W-Warn "Brak aplikacji firm trzecich."; continue }
+                if ($apps.Count -eq 0) { W-Warn "No third-party apps found."; continue }
                 [Console]::WriteLine("")
-                [Console]::WriteLine("  $($script:C.FrameAct)Zainstalowane aplikacje ($($apps.Count)):$($script:C.Reset)")
+                [Console]::WriteLine("  $($script:C.FrameAct)Installed apps ($($apps.Count)):$($script:C.Reset)")
                 $apps | ForEach-Object { [Console]::WriteLine("    $($script:C.White)$_$($script:C.Reset)") }
                 [Console]::WriteLine("")
             }
             2 {
-                W-Info "Pobieranie pełnej listy…"
+                W-Info "Fetching full list…"
                 $apps = Get-InstalledApps -Serial $Serial
-                if ($apps.Count -eq 0) { W-Warn "Brak aplikacji."; continue }
+                if ($apps.Count -eq 0) { W-Warn "No apps found."; continue }
                 [Console]::WriteLine("")
-                [Console]::WriteLine("  $($script:C.FrameAct)Wszystkie aplikacje ($($apps.Count)):$($script:C.Reset)")
+                [Console]::WriteLine("  $($script:C.FrameAct)All apps ($($apps.Count)):$($script:C.Reset)")
                 $apps | ForEach-Object { [Console]::WriteLine("    $($script:C.Muted)$_$($script:C.Reset)") }
                 [Console]::WriteLine("")
             }
             3 {
-                $apk = Read-Host "  Ścieżka do pliku APK"
+                $apk = Read-Host "  Path to APK file"
                 if (-not $apk) { continue }
-                if (-not (Test-Path $apk -PathType Leaf)) { W-Err "Plik nie istnieje: $apk"; continue }
-                W-Info "Instaluję $apk …"
+                if (-not (Test-Path $apk -PathType Leaf)) { W-Err "File not found: $apk"; continue }
+                W-Info "Installing $apk …"
                 $r = Invoke-Adb -Argv @('-s', $Serial, 'install', '-r', $apk) -AllowFail
-                if ($r.OK) { W-OK "Instalacja zakończona sukcesem." }
-                else       { W-Err "Błąd instalacji:"; $r.Out | ForEach-Object { W-Dim $_ } }
+                if ($r.OK) { W-OK "Installation successful." }
+                else       { W-Err "Installation error:"; $r.Out | ForEach-Object { W-Dim $_ } }
             }
             4 {
-                $pkg = Read-Host "  Nazwa pakietu (np. com.example.app)"
+                $pkg = Read-Host "  Package name (e.g. com.example.app)"
                 if (-not $pkg) { continue }
-                if (-not (Prompt-YN "Odinstalować $pkg ?" $false)) { continue }
+                if (-not (Prompt-YN "Uninstall $pkg ?" $false)) { continue }
                 $r = Invoke-Adb -Argv @('-s', $Serial, 'uninstall', $pkg) -AllowFail
-                if ($r.OK) { W-OK "Odinstalowano: $pkg" }
-                else       { W-Err "Błąd: $($r.Out | Select-Object -Last 1)" }
+                if ($r.OK) { W-OK "Uninstalled: $pkg" }
+                else       { W-Err "Error: $($r.Out | Select-Object -Last 1)" }
             }
             5 {
-                $pkg = Read-Host "  Nazwa pakietu"
+                $pkg = Read-Host "  Package name"
                 if (-not $pkg) { continue }
-                if (-not (Prompt-YN "Wyczyścić dane $pkg ?" $false)) { continue }
+                if (-not (Prompt-YN "Clear data for $pkg ?" $false)) { continue }
                 $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', "pm clear $pkg") -AllowFail
-                if ($r.OK) { W-OK "Dane wyczyszczone: $pkg" }
-                else       { W-Err "Błąd: $($r.Out | Select-Object -Last 1)" }
+                if ($r.OK) { W-OK "Data cleared: $pkg" }
+                else       { W-Err "Error: $($r.Out | Select-Object -Last 1)" }
             }
             6 {
-                $pkg = Read-Host "  Nazwa pakietu"
+                $pkg = Read-Host "  Package name"
                 if (-not $pkg) { continue }
                 $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', "am force-stop $pkg") -AllowFail
-                if ($r.OK) { W-OK "Zatrzymano: $pkg" }
-                else       { W-Err "Błąd: $($r.Out | Select-Object -Last 1)" }
+                if ($r.OK) { W-OK "Stopped: $pkg" }
+                else       { W-Err "Error: $($r.Out | Select-Object -Last 1)" }
             }
             7 { return }
         }
@@ -1149,7 +1149,7 @@ function script:Start-AppManager([string]$Serial) {
 function script:Get-DeviceInfo([string]$Serial) {
     $props = [ordered]@{
         'Model'         = 'ro.product.model'
-        'Producent'     = 'ro.product.manufacturer'
+        'Manufacturer'  = 'ro.product.manufacturer'
         'Android'       = 'ro.build.version.release'
         'SDK'           = 'ro.build.version.sdk'
         'Build'         = 'ro.build.id'
@@ -1166,7 +1166,7 @@ function script:Get-DeviceInfo([string]$Serial) {
     $bat = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'dumpsys battery') -AllowFail
     if ($bat.OK) {
         $level = $bat.Out | Where-Object { $_ -match 'level:' } | Select-Object -First 1
-        if ($level -match 'level:\s*(\d+)') { $result['Bateria'] = "$($Matches[1])%" }
+        if ($level -match 'level:\s*(\d+)') { $result['Battery'] = "$($Matches[1])%" }
     }
     # Uptime
     $up = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'cat /proc/uptime') -AllowFail
@@ -1182,25 +1182,25 @@ function script:Get-DeviceInfo([string]$Serial) {
 
 function script:Start-Diagnostics([string]$Serial) {
     Cls
-    W-Section "Diagnostyka"
+    W-Section "Diagnostics"
 
-    $modeChoice = Prompt-Choice "Tryb diagnostyki:" @(
-        "Automatyczny  — pełny raport urządzenia"
-        "Manualny      — wybierz co sprawdzić"
+    $modeChoice = Prompt-Choice "Diagnostics mode:" @(
+        "Automatic  — full device report"
+        "Manual     — choose what to check"
     ) -Default 1
 
     if ($modeChoice -eq 1) {
         # Auto mode: full report
         [Console]::WriteLine("")
-        W-Info "Zbieranie danych o urządzeniu…"
+        W-Info "Collecting device information…"
         $info = Get-DeviceInfo -Serial $Serial
         [Console]::WriteLine("")
-        W-Box -Title ' Informacje o urządzeniu ' -Col $script:C.FrameAct -Lines @(
+        W-Box -Title ' Device information ' -Col $script:C.FrameAct -Lines @(
             $info.Keys | ForEach-Object { '  {0,-14} {1}' -f "$_:", $info[$_] }
         )
 
         [Console]::WriteLine("")
-        if (Prompt-YN "Zapisać raport do pliku?" $false) {
+        if (Prompt-YN "Save report to file?" $false) {
             $outFile = "phone-diag-$(([datetime]::Now).ToString('yyyyMMdd-HHmmss')).txt"
             $lines   = @("# pwt phone diagnostics — $([datetime]::Now)")
             $lines  += @("# Device: $Serial")
@@ -1208,71 +1208,71 @@ function script:Start-Diagnostics([string]$Serial) {
             $lines  += @("## Device info")
             $info.Keys | ForEach-Object { $lines += ('  {0,-14} {1}' -f "$_:", $info[$_]) }
             $lines | Out-File $outFile -Encoding UTF8
-            W-OK "Zapisano: $(Join-Path (Get-Location) $outFile)"
+            W-OK "Saved: $(Join-Path (Get-Location) $outFile)"
         }
         return
     }
 
     # Manual mode
     while ($true) {
-        $op = Prompt-Choice "Co sprawdzić?" @(
-            "Informacje o urządzeniu"
-            "Logcat (ostatnie 100 linii)"
-            "Logcat  live  (Ctrl+C aby przerwać)"
-            "Sieć  (ip addr + netstat)"
-            "Procesy  (top -n1)"
-            "Miejsce na dysku  (df -h)"
-            "Bugreport (zapis do pliku)"
-            "Wyjście"
+        $op = Prompt-Choice "What to check?" @(
+            "Device information"
+            "Logcat (last 100 lines)"
+            "Logcat  live  (Ctrl+C to stop)"
+            "Network  (ip addr + netstat)"
+            "Processes  (top -n1)"
+            "Disk space  (df -h)"
+            "Bugreport (save to file)"
+            "Exit"
         ) -Default 1
 
         switch ($op) {
             1 {
-                W-Info "Pobieranie info…"
+                W-Info "Fetching info…"
                 $info = Get-DeviceInfo -Serial $Serial
                 [Console]::WriteLine("")
-                W-Box -Title ' Informacje o urządzeniu ' -Col $script:C.FrameAct -Lines @(
+                W-Box -Title ' Device information ' -Col $script:C.FrameAct -Lines @(
                     $info.Keys | ForEach-Object { '  {0,-14} {1}' -f "$_:", $info[$_] }
                 )
             }
             2 {
-                W-Info "Pobieranie logcat…"
+                W-Info "Fetching logcat…"
                 $r = Invoke-Adb -Argv @('-s', $Serial, 'logcat', '-d', '-t', '100') -AllowFail
                 [Console]::WriteLine("")
                 $r.Out | ForEach-Object { [Console]::WriteLine("  $($script:C.Muted)$_$($script:C.Reset)") }
             }
             3 {
                 [Console]::WriteLine("")
-                W-Info "Logcat live — Ctrl+C aby przerwać."
+                W-Info "Logcat live — Ctrl+C to stop."
                 [Console]::WriteLine("")
                 & adb -s $Serial logcat
             }
             4 {
-                W-Info "Pobieranie info sieci…"
+                W-Info "Fetching network info…"
                 $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'ip addr; echo "---"; netstat -tunp 2>/dev/null || ss -tunp') -AllowFail
                 [Console]::WriteLine("")
                 $r.Out | ForEach-Object { [Console]::WriteLine("  $($script:C.White)$_$($script:C.Reset)") }
             }
             5 {
-                W-Info "Pobieranie listy procesów…"
+                W-Info "Fetching process list…"
                 $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'top -n1 -b') -AllowFail
                 [Console]::WriteLine("")
                 $r.Out | Select-Object -First 30 | ForEach-Object { [Console]::WriteLine("  $($script:C.White)$_$($script:C.Reset)") }
             }
             6 {
-                W-Info "Sprawdzanie miejsca na dysku…"
+                W-Info "Checking disk space…"
                 $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'df -h') -AllowFail
                 [Console]::WriteLine("")
                 $r.Out | ForEach-Object { [Console]::WriteLine("  $($script:C.White)$_$($script:C.Reset)") }
             }
             7 {
                 $outFile = "bugreport-$(([datetime]::Now).ToString('yyyyMMdd-HHmmss')).zip"
-                W-Info "Generowanie bugreportu — może potrwać kilkadziesiąt sekund…"
+                W-Info "Generating bugreport — this may take several seconds…"
                 $r = Invoke-Adb -Argv @('-s', $Serial, 'bugreport', $outFile) -AllowFail
                 if ($r.OK -or (Test-Path $outFile)) {
-                    W-OK "Zapisano: $(Join-Path (Get-Location) $outFile)"
+                    W-OK "Saved: $(Join-Path (Get-Location) $outFile)"
                 } else {
-                    W-Err "Bugreport nie powiódł się."
+                    W-Err "Bugreport failed."
                     $r.Out | ForEach-Object { W-Dim $_ }
                 }
             }
@@ -1289,16 +1289,16 @@ function script:Start-Diagnostics([string]$Serial) {
 function script:Select-Mode {
     [Console]::WriteLine("")
     $opts = @(
-        "Streaming    — podgląd ekranu przez scrcpy"
-        "Terminal     — powłoka adb shell"
-        "Transfer     — dwupanelowy menedżer plików  (PC ↔ /sdcard)"
-        "WinSCP       — otwórz telefon w WinSCP GUI"
-        "Aplikacje    — menedżer APK (lista / instalacja / odinstalowanie)"
-        "Diagnostyka  — informacje, logcat, bugreport"
+        "Streaming    — screen mirror via scrcpy"
+        "Terminal     — adb shell"
+        "Transfer     — dual-pane file manager  (PC ↔ /sdcard)"
+        "WinSCP       — open phone storage in WinSCP GUI"
+        "Apps         — APK manager (list / install / uninstall)"
+        "Diagnostics  — device info, logcat, bugreport"
     )
-    if (-not $script:ScrcpyOk) { $opts[0] += '  [scrcpy nie zainstalowane]' }
-    if (-not $script:WinScpOk) { $opts[3] += '  [WinSCP nie zainstalowane]' }
-    $choice = Prompt-Choice "Co chcesz zrobić?" $opts -Default 3
+    if (-not $script:ScrcpyOk) { $opts[0] += '  [scrcpy not installed]' }
+    if (-not $script:WinScpOk) { $opts[3] += '  [WinSCP not installed]' }
+    $choice = Prompt-Choice "What would you like to do?" $opts -Default 3
     return @('Streaming', 'Terminal', 'Files', 'WinScp', 'Apps', 'Diag')[$choice - 1]
 }
 
@@ -1306,7 +1306,7 @@ function script:Resolve-PhoneLocalPath {
     param([string]$Path)
 
     if ([string]::IsNullOrWhiteSpace($Path)) {
-        throw "LocalPath nie może być pusty."
+        throw "LocalPath cannot be empty."
     }
 
     try {
@@ -1314,11 +1314,11 @@ function script:Resolve-PhoneLocalPath {
         $item = Get-Item -LiteralPath $resolved.Path -ErrorAction Stop
     }
     catch {
-        throw "LocalPath nie istnieje: $Path"
+        throw "LocalPath does not exist: $Path"
     }
 
     if (-not $item.PSIsContainer) {
-        throw "LocalPath nie jest folderem: $($item.FullName)"
+        throw "LocalPath is not a directory: $($item.FullName)"
     }
 
     return $item.FullName
@@ -1351,67 +1351,67 @@ function script:Start-Mode([string]$ModeName, [string]$Serial, [string]$LocalPat
 function Invoke-PwtPhone {
 <#
 .SYNOPSIS
-    Android (ADB) helper — streaming, terminal, transfer plików, WinSCP, APK, diagnostyka.
+    Android (ADB) helper — streaming, terminal, file transfer, WinSCP, APK, diagnostics.
 
 .DESCRIPTION
-    Łączy się z urządzeniem Android przez USB lub Wi-Fi i oferuje sześć trybów:
-      1. Streaming  — scrcpy (mirror ekranu z konfiguracją)
-      2. Terminal   — adb shell (z opcjonalnym rootem / poleceniem / katalogiem)
-      3. Transfer   — dwupanelowy TUI w stylu Total Commander (PC ↔ /sdcard)
-                      F5=Kopiuj  F6=Przenieś  F7=MkDir  F8=Usuń
-      4. WinScp     — otwiera pamięć telefonu w WinSCP GUI (jeśli zainstalowane)
-      5. Apps       — menedżer APK: lista, instalacja, odinstalowanie, clear, force-stop
-      6. Diag       — diagnostyka: info, logcat, sieć, procesy, df, bugreport
+    Connects to an Android device via USB or Wi-Fi and offers six modes:
+      1. Streaming  — scrcpy (screen mirror with configuration)
+      2. Terminal   — adb shell (with optional root / command / directory)
+      3. Transfer   — dual-pane TUI in Total Commander style (PC ↔ /sdcard)
+                      F5=Copy  F6=Move  F7=MkDir  F8=Delete
+      4. WinScp     — opens phone storage in WinSCP GUI (if installed)
+      5. Apps       — APK manager: list, install, uninstall, clear, force-stop
+      6. Diag       — diagnostics: info, logcat, network, processes, df, bugreport
 
-    Skrypt nie zapisuje żadnych plików konfiguracyjnych — IP, port i tryb
-    wybierasz każdorazowo interaktywnie (lub przez parametry).
+    The script does not save any configuration files — IP, port and mode
+    are chosen interactively each time (or via parameters).
 
 .PARAMETER Mode
-    Tryb połączenia: Usb lub Wifi. Pytany interaktywnie jeśli pominięty.
+    Connection type: Usb or Wifi. Asked interactively if omitted.
 
 .PARAMETER ModeAction
-    Uruchom od razu: Streaming, Terminal, Files, WinScp, Apps lub Diag. Menu jeśli pominięty.
+    Launch directly: Streaming, Terminal, Files, WinScp, Apps or Diag. Shows menu if omitted.
 
 .PARAMETER Ip
-    Adres IP telefonu dla trybu Wi-Fi. Wykrywany automatycznie jeśli pominięty.
+    Phone IP address for Wi-Fi mode. Auto-detected if omitted.
 
 .PARAMETER Port
-    Port TCP ADB (domyślnie 5555).
+    ADB TCP port (default 5555).
 
 .PARAMETER DeviceId
-    Numer seryjny konkretnego urządzenia. Pomija interaktywny wybór.
+    Serial number of a specific device. Skips interactive selection.
 
 .PARAMETER LocalPath
-    Startowy katalog lokalny dla trybu Transfer. Domyślnie: bieżący katalog.
+    Initial local directory for Transfer mode. Default: current directory.
 
 .PARAMETER RemotePath
-    Startowy katalog na telefonie. Domyślnie: /sdcard.
+    Initial directory on the phone. Default: /sdcard.
 
 .PARAMETER NoCleanup
-    Nie rozłączaj sesji ADB Wi-Fi po zakończeniu.
+    Do not disconnect the ADB Wi-Fi session after finishing.
 
 .PARAMETER Status
-    Sprawdź adb, scrcpy i aktualnie widoczne urządzenia bez uruchamiania menu.
+    Check adb, scrcpy and currently visible devices without launching the menu.
 
 .EXAMPLE
     pwt phone
-    Interaktywny — pyta o typ połączenia, potem o tryb.
+    Interactive — asks for connection type, then mode.
 
 .EXAMPLE
     pwt phone -Status
-    Szybki raport narzędzi i urządzeń ADB.
+    Quick report of ADB tools and devices.
 
 .EXAMPLE
     pwt phone -Mode Usb -ModeAction Terminal
-    Otwórz adb shell na telefonie USB, bez menu.
+    Open adb shell on the USB phone, no menu.
 
 .EXAMPLE
     pwt phone -Mode Wifi -Ip 192.168.1.100 -ModeAction Streaming
-    Połącz przez Wi-Fi i uruchom menu konfiguracji scrcpy.
+    Connect via Wi-Fi and launch the scrcpy configuration menu.
 
 .EXAMPLE
-    pwt phone -Mode Wifi -Ip 192.168.1.100 -ModeAction Files -LocalPath D:\Zdjęcia -RemotePath /sdcard/DCIM
-    Wi-Fi + menedżer plików Zdjęcia ↔ DCIM.
+    pwt phone -Mode Wifi -Ip 192.168.1.100 -ModeAction Files -LocalPath D:\Photos -RemotePath /sdcard/DCIM
+    Wi-Fi + file manager Photos ↔ DCIM.
 #>
     [CmdletBinding()]
     param(
@@ -1442,7 +1442,7 @@ function Invoke-PwtPhone {
     [Console]::WriteLine("")
 
     if (-not (Test-Tool -Name 'adb' `
-            -Description 'Android Debug Bridge — wymagany dla wszystkich operacji.' `
+            -Description 'Android Debug Bridge — required for all operations.' `
             -Winget 'Google.PlatformTools' `
             -Url 'https://developer.android.com/studio/releases/platform-tools')) { return }
 
@@ -1457,11 +1457,11 @@ function Invoke-PwtPhone {
 
     try {
 
-        # ── TYP POŁĄCZENIA ────────────────────────────────────────────────────
+        # ── CONNECTION TYPE ───────────────────────────────────────────────────
         if (-not $Mode) {
-            $connectionChoice = Prompt-Choice "Typ połączenia:" @(
-                'USB  (zalecany przy pierwszej konfiguracji)'
-                'Wi-Fi  (ADB przez TCP/IP)'
+            $connectionChoice = Prompt-Choice "Connection type:" @(
+                'USB  (recommended for initial setup)'
+                'Wi-Fi  (ADB over TCP/IP)'
             ) -Default 1
             $Mode = @('Usb', 'Wifi')[$connectionChoice - 1]
         }
@@ -1469,16 +1469,16 @@ function Invoke-PwtPhone {
         # ── USB ───────────────────────────────────────────────────────────────
         if ($Mode -eq 'Usb') {
             W-Section "USB"
-            W-Info "Szukam urządzeń USB…"
+            W-Info "Looking for USB devices…"
 
             $devs = @(Get-AdbDevices | Where-Object { $_.IsUSB })
             if ($devs.Count -eq 0) {
-                W-Err "Nie wykryto urządzenia USB."
-                W-Box -Col $script:C.Warn -Title ' Lista kontrolna ' -Lines @(
-                    "Kabel USB obsługuje transfer danych (nie tylko ładowanie)"
-                    "Debugowanie USB włączone w Opcjach programisty"
-                    "Zaakceptowano 'Zezwolić na debugowanie USB?' na telefonie"
-                    "Tryb USB ustawiony na Transfer plików / MTP"
+                W-Err "No USB device detected."
+                W-Box -Col $script:C.Warn -Title ' Checklist ' -Lines @(
+                    "USB cable supports data transfer (not charge-only)"
+                    "USB debugging enabled in Developer options"
+                    "Accepted 'Allow USB debugging?' on the phone"
+                    "USB mode set to File Transfer / MTP"
                 )
                 return
             }
@@ -1490,7 +1490,7 @@ function Invoke-PwtPhone {
 
             $ready = @($devs | Where-Object { $_.Ready })
             if ($ready.Count -eq 0) {
-                W-Err "Brak gotowych urządzeń USB. Znalezione:"
+                W-Err "No ready USB devices. Found:"
                 $devs | ForEach-Object { W-Dim "$($_.Serial)  ($($_.State))" }
                 return
             }
@@ -1500,11 +1500,11 @@ function Invoke-PwtPhone {
             }
             elseif ($ready.Count -eq 1) { $ready[0] }
             else {
-                $idx = (Prompt-Choice "Wybierz urządzenie:" ($ready | ForEach-Object { $_.Serial }) -Default 1) - 1
+                $idx = (Prompt-Choice "Select device:" ($ready | ForEach-Object { $_.Serial }) -Default 1) - 1
                 $ready[$idx]
             }
-            if (-not $picked) { W-Err "Nie znaleziono urządzenia."; return }
-            W-OK "Używam urządzenia: $($picked.Serial)"
+            if (-not $picked) { W-Err "Device not found."; return }
+            W-OK "Using device: $($picked.Serial)"
 
             $sel = if ($ModeAction) { $ModeAction } else { Select-Mode }
             Start-Mode -ModeName $sel -Serial $picked.Serial -LocalPath $LocalPath -RemotePath $RemotePath
@@ -1515,15 +1515,15 @@ function Invoke-PwtPhone {
         if ($Mode -eq 'Wifi') {
             W-Section "Wi-Fi"
             [Console]::WriteLine("")
-            W-Warn "ADB przez Wi-Fi otwiera port sieciowy na telefonie."
-            W-Warn "Używaj tylko w zaufanych sieciach!"
+            W-Warn "ADB over Wi-Fi opens a network port on the phone."
+            W-Warn "Use only on trusted networks!"
             [Console]::WriteLine("")
-            W-Info "Szukam urządzenia USB do konfiguracji Wi-Fi…"
+            W-Info "Looking for USB device to configure Wi-Fi…"
 
             $usb = @(Get-AdbDevices | Where-Object { $_.IsUSB -and $_.Ready })
             if ($usb.Count -eq 0) {
-                W-Err "Nie znaleziono urządzenia USB."
-                W-Dim "Najpierw podłącz telefon przez USB, aby włączyć ADB Wi-Fi."
+                W-Err "No USB device found."
+                W-Dim "Connect the phone via USB first to enable ADB Wi-Fi."
                 return
             }
 
@@ -1532,54 +1532,54 @@ function Invoke-PwtPhone {
             }
             elseif ($usb.Count -eq 1) { $usb[0] }
             else {
-                $idx = (Prompt-Choice "Wybierz urządzenie:" ($usb | ForEach-Object { $_.Serial }) -Default 1) - 1
+                $idx = (Prompt-Choice "Select device:" ($usb | ForEach-Object { $_.Serial }) -Default 1) - 1
                 $usb[$idx]
             }
-            if (-not $picked) { W-Err "Nie znaleziono urządzenia."; return }
-            W-OK "Używam urządzenia: $($picked.Serial)"
+            if (-not $picked) { W-Err "Device not found."; return }
+            W-OK "Using device: $($picked.Serial)"
             [Console]::WriteLine("")
 
             $tgtIp = if ($Ip) { $Ip } else { Get-PhoneIP -Serial $picked.Serial }
             if (-not $tgtIp) {
-                W-Warn "Nie udało się automatycznie wykryć IP."
-                W-Dim  "Znajdź je w: Ustawienia → Wi-Fi → Szczegóły sieci"
-                $tgtIp = Read-Host "  Podaj adres IP telefonu"
+                W-Warn "Could not auto-detect IP address."
+                W-Dim  "Find it at: Settings → Wi-Fi → Network details"
+                $tgtIp = Read-Host "  Enter phone IP address"
             }
             else {
-                W-OK "Wykryty IP: $tgtIp"
-                if (-not (Prompt-YN "Użyć $tgtIp ?" $true)) {
-                    $tgtIp = Read-Host "  Podaj adres IP telefonu"
+                W-OK "Detected IP: $tgtIp"
+                if (-not (Prompt-YN "Use $tgtIp ?" $true)) {
+                    $tgtIp = Read-Host "  Enter phone IP address"
                 }
             }
-            if (-not (Test-ValidIP $tgtIp)) { W-Err "Nieprawidłowy adres IP: $tgtIp"; return }
+            if (-not (Test-ValidIP $tgtIp)) { W-Err "Invalid IP address: $tgtIp"; return }
 
             [Console]::WriteLine("")
-            W-Info "Przełączam urządzenie na tryb TCP/IP (port $Port)…"
+            W-Info "Switching device to TCP/IP mode (port $Port)…"
             $r = Invoke-Adb -Argv @('-s', $picked.Serial, 'tcpip', $Port.ToString()) -AllowFail
             [Console]::WriteLine("$($script:C.Muted)$($r.Out -join "`n")$($script:C.Reset)")
             # Give the phone a moment to restart ADB in TCP mode
             Start-Sleep -Seconds 3
 
             $tgt = "${tgtIp}:${Port}"
-            W-Info "Łączę z $tgt …"
+            W-Info "Connecting to $tgt …"
             $r   = Invoke-Adb -Argv @('connect', $tgt) -AllowFail
             [Console]::WriteLine("$($script:C.Muted)$($r.Out -join "`n")$($script:C.Reset)")
 
             $out = $r.Out -join ''
             if (-not ($out -match 'connected to')) {
-                W-Err "Nie udało się połączyć przez Wi-Fi."
-                W-Box -Col $script:C.Warn -Title ' Rozwiązywanie problemów ' -Lines @(
-                    "Sprawdź czy adres IP jest poprawny"
-                    "Telefon i PC muszą być w tej samej sieci"
-                    "Brak firewalla blokującego port $Port"
-                    "Spróbuj odłączyć i ponownie podłączyć USB"
+                W-Err "Failed to connect via Wi-Fi."
+                W-Box -Col $script:C.Warn -Title ' Troubleshooting ' -Lines @(
+                    "Check that the IP address is correct"
+                    "Phone and PC must be on the same network"
+                    "No firewall blocking port $Port"
+                    "Try disconnecting and reconnecting the USB cable"
                 )
                 return
             }
 
             $script:LastWifi = $tgt
             [Console]::WriteLine("")
-            W-OK "Możesz teraz odłączyć kabel USB."
+            W-OK "You can now disconnect the USB cable."
 
             $sel = if ($ModeAction) { $ModeAction } else { Select-Mode }
             Start-Mode -ModeName $sel -Serial $tgt -LocalPath $LocalPath -RemotePath $RemotePath
@@ -1590,7 +1590,7 @@ function Invoke-PwtPhone {
     finally {
         if (-not $NoCleanup -and $script:LastWifi) {
             [Console]::WriteLine("")
-            W-Info "Przywracam ADB USB i rozłączam Wi-Fi ($($script:LastWifi))…"
+            W-Info "Restoring ADB USB and disconnecting Wi-Fi ($($script:LastWifi))…"
             Invoke-Adb -Argv @('-s', $script:LastWifi, 'usb') -AllowFail | Out-Null
             Start-Sleep -Milliseconds 500
             Invoke-Adb -Argv @('disconnect', $script:LastWifi) -AllowFail | Out-Null
@@ -1601,7 +1601,7 @@ function Invoke-PwtPhone {
 # ── pwt integration ────────────────────────────────────────────────────────────
 if (Get-Command Register-PwtCommand -ErrorAction SilentlyContinue) {
     Register-PwtCommand -Name 'phone' -Category 'phone' `
-        -Synopsis 'Android (ADB): streaming, terminal, dwupanelowy transfer plików' `
+        -Synopsis 'Android (ADB): streaming, terminal, dual-pane file transfer' `
         -Function  'Invoke-PwtPhone' `
         -Requires  @('adb')
 }
