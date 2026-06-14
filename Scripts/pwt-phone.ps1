@@ -989,6 +989,279 @@ function script:Start-FileManager([string]$Serial, [string]$LocalPath, [string]$
 }
 
 # =============================================================================
+#  MODE 4 — WINSCP  (open phone storage in WinSCP GUI)
+# =============================================================================
+
+$script:WinScpOk   = $false
+$script:WinScpPath = $null
+
+function script:Find-WinScp {
+    $candidates = @(
+        'WinSCP.exe'  # PATH
+        "$env:ProgramFiles\WinSCP\WinSCP.exe"
+        "${env:ProgramFiles(x86)}\WinSCP\WinSCP.exe"
+        "$env:LOCALAPPDATA\Programs\WinSCP\WinSCP.exe"
+        "$env:APPDATA\WinSCP\WinSCP.exe"
+    )
+    foreach ($p in $candidates) {
+        if ($p -eq 'WinSCP.exe') {
+            $cmd = Get-Command 'WinSCP.exe' -ErrorAction SilentlyContinue
+            if ($cmd) { return $cmd.Source }
+        }
+        elseif (Test-Path $p -PathType Leaf) { return $p }
+    }
+    return $null
+}
+
+function script:Start-WinScp([string]$Serial) {
+    if (-not $script:WinScpOk) {
+        [Console]::WriteLine("")
+        W-Err "WinSCP nie znalezione."
+        W-Dim "Pobierz: https://winscp.net"
+        W-Dim "Lub zainstaluj: winget install WinSCP.WinSCP"
+        [Console]::WriteLine("")
+        return
+    }
+
+    [Console]::WriteLine("")
+    W-Info "Uruchamiam WinSCP z połączeniem ADB (SCP over adb)…"
+    W-Dim  "Używam: $($script:WinScpPath)"
+    [Console]::WriteLine("")
+
+    # WinSCP supports SCP via 'adb' protocol using the local ADB server.
+    # URL format: adb://serial/path
+    $url = "adb://$Serial/"
+    try {
+        & $script:WinScpPath $url
+    }
+    catch {
+        W-Err "Nie udało się uruchomić WinSCP: $($_.Exception.Message)"
+    }
+}
+
+# =============================================================================
+#  MODE 5 — APP MANAGER  (list / install / uninstall APKs via ADB)
+# =============================================================================
+
+function script:Get-InstalledApps([string]$Serial, [switch]$ThirdParty) {
+    $flag = if ($ThirdParty) { '-3' } else { '-e' }
+    $r    = Invoke-Adb -Argv @('-s', $Serial, 'shell', "pm list packages $flag") -AllowFail
+    if (-not $r.OK) { return @() }
+    return @($r.Out | Where-Object { $_ -match '^package:' } | ForEach-Object { ($_ -replace '^package:', '').Trim() } | Sort-Object)
+}
+
+function script:Start-AppManager([string]$Serial) {
+    Cls
+    W-Section "Menedżer aplikacji"
+
+    while ($true) {
+        $action = Prompt-Choice "Operacja:" @(
+            "Lista aplikacji firm trzecich"
+            "Lista wszystkich aplikacji"
+            "Zainstaluj APK z dysku"
+            "Odinstaluj aplikację"
+            "Wyczyść dane aplikacji"
+            "Wymuś zatrzymanie aplikacji"
+            "Wyjście"
+        ) -Default 1
+
+        switch ($action) {
+            1 {
+                W-Info "Pobieranie listy aplikacji…"
+                $apps = Get-InstalledApps -Serial $Serial -ThirdParty
+                if ($apps.Count -eq 0) { W-Warn "Brak aplikacji firm trzecich."; continue }
+                [Console]::WriteLine("")
+                [Console]::WriteLine("  $($script:C.FrameAct)Zainstalowane aplikacje ($($apps.Count)):$($script:C.Reset)")
+                $apps | ForEach-Object { [Console]::WriteLine("    $($script:C.White)$_$($script:C.Reset)") }
+                [Console]::WriteLine("")
+            }
+            2 {
+                W-Info "Pobieranie pełnej listy…"
+                $apps = Get-InstalledApps -Serial $Serial
+                if ($apps.Count -eq 0) { W-Warn "Brak aplikacji."; continue }
+                [Console]::WriteLine("")
+                [Console]::WriteLine("  $($script:C.FrameAct)Wszystkie aplikacje ($($apps.Count)):$($script:C.Reset)")
+                $apps | ForEach-Object { [Console]::WriteLine("    $($script:C.Muted)$_$($script:C.Reset)") }
+                [Console]::WriteLine("")
+            }
+            3 {
+                $apk = Read-Host "  Ścieżka do pliku APK"
+                if (-not $apk) { continue }
+                if (-not (Test-Path $apk -PathType Leaf)) { W-Err "Plik nie istnieje: $apk"; continue }
+                W-Info "Instaluję $apk …"
+                $r = Invoke-Adb -Argv @('-s', $Serial, 'install', '-r', $apk) -AllowFail
+                if ($r.OK) { W-OK "Instalacja zakończona sukcesem." }
+                else       { W-Err "Błąd instalacji:"; $r.Out | ForEach-Object { W-Dim $_ } }
+            }
+            4 {
+                $pkg = Read-Host "  Nazwa pakietu (np. com.example.app)"
+                if (-not $pkg) { continue }
+                if (-not (Prompt-YN "Odinstalować $pkg ?" $false)) { continue }
+                $r = Invoke-Adb -Argv @('-s', $Serial, 'uninstall', $pkg) -AllowFail
+                if ($r.OK) { W-OK "Odinstalowano: $pkg" }
+                else       { W-Err "Błąd: $($r.Out | Select-Object -Last 1)" }
+            }
+            5 {
+                $pkg = Read-Host "  Nazwa pakietu"
+                if (-not $pkg) { continue }
+                if (-not (Prompt-YN "Wyczyścić dane $pkg ?" $false)) { continue }
+                $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', "pm clear $pkg") -AllowFail
+                if ($r.OK) { W-OK "Dane wyczyszczone: $pkg" }
+                else       { W-Err "Błąd: $($r.Out | Select-Object -Last 1)" }
+            }
+            6 {
+                $pkg = Read-Host "  Nazwa pakietu"
+                if (-not $pkg) { continue }
+                $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', "am force-stop $pkg") -AllowFail
+                if ($r.OK) { W-OK "Zatrzymano: $pkg" }
+                else       { W-Err "Błąd: $($r.Out | Select-Object -Last 1)" }
+            }
+            7 { return }
+        }
+    }
+}
+
+# =============================================================================
+#  MODE 6 — DIAGNOSTICS  (device info, logcat, bugreport)
+# =============================================================================
+
+function script:Get-DeviceInfo([string]$Serial) {
+    $props = [ordered]@{
+        'Model'         = 'ro.product.model'
+        'Producent'     = 'ro.product.manufacturer'
+        'Android'       = 'ro.build.version.release'
+        'SDK'           = 'ro.build.version.sdk'
+        'Build'         = 'ro.build.id'
+        'Fingerprint'   = 'ro.build.fingerprint'
+        'CPU ABI'       = 'ro.product.cpu.abi'
+        'Kernel'        = 'ro.kernel.version'
+    }
+    $result = [ordered]@{}
+    foreach ($k in $props.Keys) {
+        $v = Get-AdbPropValue -Serial $Serial -Name $props[$k]
+        $result[$k] = if ($v) { $v } else { '—' }
+    }
+    # Battery
+    $bat = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'dumpsys battery') -AllowFail
+    if ($bat.OK) {
+        $level = $bat.Out | Where-Object { $_ -match 'level:' } | Select-Object -First 1
+        if ($level -match 'level:\s*(\d+)') { $result['Bateria'] = "$($Matches[1])%" }
+    }
+    # Uptime
+    $up = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'cat /proc/uptime') -AllowFail
+    if ($up.OK) {
+        $secs = ($up.Out[0] -split '\s+')[0]
+        if ($secs -match '^\d') {
+            $ts = [TimeSpan]::FromSeconds([double]$secs)
+            $result['Uptime'] = ('{0}d {1:D2}h {2:D2}m' -f [int]$ts.TotalDays, $ts.Hours, $ts.Minutes)
+        }
+    }
+    return $result
+}
+
+function script:Start-Diagnostics([string]$Serial) {
+    Cls
+    W-Section "Diagnostyka"
+
+    $modeChoice = Prompt-Choice "Tryb diagnostyki:" @(
+        "Automatyczny  — pełny raport urządzenia"
+        "Manualny      — wybierz co sprawdzić"
+    ) -Default 1
+
+    if ($modeChoice -eq 1) {
+        # Auto mode: full report
+        [Console]::WriteLine("")
+        W-Info "Zbieranie danych o urządzeniu…"
+        $info = Get-DeviceInfo -Serial $Serial
+        [Console]::WriteLine("")
+        W-Box -Title ' Informacje o urządzeniu ' -Col $script:C.FrameAct -Lines @(
+            $info.Keys | ForEach-Object { '  {0,-14} {1}' -f "$_:", $info[$_] }
+        )
+
+        [Console]::WriteLine("")
+        if (Prompt-YN "Zapisać raport do pliku?" $false) {
+            $outFile = "phone-diag-$(([datetime]::Now).ToString('yyyyMMdd-HHmmss')).txt"
+            $lines   = @("# pwt phone diagnostics — $([datetime]::Now)")
+            $lines  += @("# Device: $Serial")
+            $lines  += @("")
+            $lines  += @("## Device info")
+            $info.Keys | ForEach-Object { $lines += ('  {0,-14} {1}' -f "$_:", $info[$_]) }
+            $lines | Out-File $outFile -Encoding UTF8
+            W-OK "Zapisano: $(Join-Path (Get-Location) $outFile)"
+        }
+        return
+    }
+
+    # Manual mode
+    while ($true) {
+        $op = Prompt-Choice "Co sprawdzić?" @(
+            "Informacje o urządzeniu"
+            "Logcat (ostatnie 100 linii)"
+            "Logcat  live  (Ctrl+C aby przerwać)"
+            "Sieć  (ip addr + netstat)"
+            "Procesy  (top -n1)"
+            "Miejsce na dysku  (df -h)"
+            "Bugreport (zapis do pliku)"
+            "Wyjście"
+        ) -Default 1
+
+        switch ($op) {
+            1 {
+                W-Info "Pobieranie info…"
+                $info = Get-DeviceInfo -Serial $Serial
+                [Console]::WriteLine("")
+                W-Box -Title ' Informacje o urządzeniu ' -Col $script:C.FrameAct -Lines @(
+                    $info.Keys | ForEach-Object { '  {0,-14} {1}' -f "$_:", $info[$_] }
+                )
+            }
+            2 {
+                W-Info "Pobieranie logcat…"
+                $r = Invoke-Adb -Argv @('-s', $Serial, 'logcat', '-d', '-t', '100') -AllowFail
+                [Console]::WriteLine("")
+                $r.Out | ForEach-Object { [Console]::WriteLine("  $($script:C.Muted)$_$($script:C.Reset)") }
+            }
+            3 {
+                [Console]::WriteLine("")
+                W-Info "Logcat live — Ctrl+C aby przerwać."
+                [Console]::WriteLine("")
+                & adb -s $Serial logcat
+            }
+            4 {
+                W-Info "Pobieranie info sieci…"
+                $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'ip addr; echo "---"; netstat -tunp 2>/dev/null || ss -tunp') -AllowFail
+                [Console]::WriteLine("")
+                $r.Out | ForEach-Object { [Console]::WriteLine("  $($script:C.White)$_$($script:C.Reset)") }
+            }
+            5 {
+                W-Info "Pobieranie listy procesów…"
+                $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'top -n1 -b') -AllowFail
+                [Console]::WriteLine("")
+                $r.Out | Select-Object -First 30 | ForEach-Object { [Console]::WriteLine("  $($script:C.White)$_$($script:C.Reset)") }
+            }
+            6 {
+                W-Info "Sprawdzanie miejsca na dysku…"
+                $r = Invoke-Adb -Argv @('-s', $Serial, 'shell', 'df -h') -AllowFail
+                [Console]::WriteLine("")
+                $r.Out | ForEach-Object { [Console]::WriteLine("  $($script:C.White)$_$($script:C.Reset)") }
+            }
+            7 {
+                $outFile = "bugreport-$(([datetime]::Now).ToString('yyyyMMdd-HHmmss')).zip"
+                W-Info "Generowanie bugreportu — może potrwać kilkadziesiąt sekund…"
+                $r = Invoke-Adb -Argv @('-s', $Serial, 'bugreport', $outFile) -AllowFail
+                if ($r.OK -or (Test-Path $outFile)) {
+                    W-OK "Zapisano: $(Join-Path (Get-Location) $outFile)"
+                } else {
+                    W-Err "Bugreport nie powiódł się."
+                    $r.Out | ForEach-Object { W-Dim $_ }
+                }
+            }
+            8 { return }
+        }
+        [Console]::WriteLine("")
+    }
+}
+
+# =============================================================================
 #  MODE MENU
 # =============================================================================
 
@@ -998,10 +1271,14 @@ function script:Select-Mode {
         "Streaming    — podgląd ekranu przez scrcpy"
         "Terminal     — powłoka adb shell"
         "Transfer     — dwupanelowy menedżer plików  (PC ↔ /sdcard)"
+        "WinSCP       — otwórz telefon w WinSCP GUI"
+        "Aplikacje    — menedżer APK (lista / instalacja / odinstalowanie)"
+        "Diagnostyka  — informacje, logcat, bugreport"
     )
     if (-not $script:ScrcpyOk) { $opts[0] += '  [scrcpy nie zainstalowane]' }
+    if (-not $script:WinScpOk) { $opts[3] += '  [WinSCP nie zainstalowane]' }
     $choice = Prompt-Choice "Co chcesz zrobić?" $opts -Default 3
-    return @('Streaming', 'Terminal', 'Files')[$choice - 1]
+    return @('Streaming', 'Terminal', 'Files', 'WinScp', 'Apps', 'Diag')[$choice - 1]
 }
 
 function script:Resolve-PhoneLocalPath {
@@ -1040,6 +1317,9 @@ function script:Start-Mode([string]$ModeName, [string]$Serial, [string]$LocalPat
             }
             Start-FileManager -Serial $Serial -LocalPath $resolvedLocalPath -RemotePath $RemotePath
         }
+        'WinScp'    { Start-WinScp       -Serial $Serial }
+        'Apps'      { Start-AppManager   -Serial $Serial }
+        'Diag'      { Start-Diagnostics  -Serial $Serial }
     }
 }
 
@@ -1050,14 +1330,17 @@ function script:Start-Mode([string]$ModeName, [string]$Serial, [string]$LocalPat
 function Invoke-PwtPhone {
 <#
 .SYNOPSIS
-    Android (ADB) helper — streaming, terminal, dwupanelowy transfer plików.
+    Android (ADB) helper — streaming, terminal, transfer plików, WinSCP, APK, diagnostyka.
 
 .DESCRIPTION
-    Łączy się z urządzeniem Android przez USB lub Wi-Fi i oferuje trzy tryby:
+    Łączy się z urządzeniem Android przez USB lub Wi-Fi i oferuje sześć trybów:
       1. Streaming  — scrcpy (mirror ekranu z konfiguracją)
       2. Terminal   — adb shell (z opcjonalnym rootem / poleceniem / katalogiem)
       3. Transfer   — dwupanelowy TUI w stylu Total Commander (PC ↔ /sdcard)
                       F5=Kopiuj  F6=Przenieś  F7=MkDir  F8=Usuń
+      4. WinScp     — otwiera pamięć telefonu w WinSCP GUI (jeśli zainstalowane)
+      5. Apps       — menedżer APK: lista, instalacja, odinstalowanie, clear, force-stop
+      6. Diag       — diagnostyka: info, logcat, sieć, procesy, df, bugreport
 
     Skrypt nie zapisuje żadnych plików konfiguracyjnych — IP, port i tryb
     wybierasz każdorazowo interaktywnie (lub przez parametry).
@@ -1066,7 +1349,7 @@ function Invoke-PwtPhone {
     Tryb połączenia: Usb lub Wifi. Pytany interaktywnie jeśli pominięty.
 
 .PARAMETER ModeAction
-    Uruchom od razu: Streaming, Terminal lub Files. Menu jeśli pominięty.
+    Uruchom od razu: Streaming, Terminal, Files, WinScp, Apps lub Diag. Menu jeśli pominięty.
 
 .PARAMETER Ip
     Adres IP telefonu dla trybu Wi-Fi. Wykrywany automatycznie jeśli pominięty.
@@ -1112,7 +1395,7 @@ function Invoke-PwtPhone {
     [CmdletBinding()]
     param(
         [ValidateSet('Usb', 'Wifi')][string]$Mode,
-        [ValidateSet('Streaming', 'Terminal', 'Files')][string]$ModeAction,
+        [ValidateSet('Streaming', 'Terminal', 'Files', 'WinScp', 'Apps', 'Diag')][string]$ModeAction,
         [string]$Ip,
         [ValidateRange(1, 65535)][int]$Port = 5555,
         [string]$DeviceId,
@@ -1142,10 +1425,10 @@ function Invoke-PwtPhone {
             -Winget 'Google.PlatformTools' `
             -Url 'https://developer.android.com/studio/releases/platform-tools')) { return }
 
-    $script:ScrcpyOk = Test-Tool -Name 'scrcpy' `
-        -Description 'Mirror ekranu — wymagany tylko dla trybu Streaming.' `
-        -Winget 'Genymobile.scrcpy' `
-        -Url 'https://github.com/Genymobile/scrcpy'
+    $script:ScrcpyOk = [bool](Get-Command 'scrcpy' -ErrorAction SilentlyContinue)
+
+    $script:WinScpPath = Find-WinScp
+    $script:WinScpOk   = [bool]$script:WinScpPath
 
     Invoke-Adb -Argv @('start-server') -AllowFail | Out-Null
     Start-Sleep -Milliseconds 400
