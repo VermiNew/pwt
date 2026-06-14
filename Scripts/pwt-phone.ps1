@@ -1196,7 +1196,7 @@ function script:Start-Diagnostics([string]$Serial) {
         $info = Get-DeviceInfo -Serial $Serial
         [Console]::WriteLine("")
         W-Box -Title ' Device information ' -Col $script:C.FrameAct -Lines @(
-            $info.Keys | ForEach-Object { '  {0,-14} {1}' -f "$_:", $info[$_] }
+            $info.Keys | ForEach-Object { '  {0,-14} {1}' -f "${_}:", $info[$_] }
         )
 
         [Console]::WriteLine("")
@@ -1206,7 +1206,7 @@ function script:Start-Diagnostics([string]$Serial) {
             $lines  += @("# Device: $Serial")
             $lines  += @("")
             $lines  += @("## Device info")
-            $info.Keys | ForEach-Object { $lines += ('  {0,-14} {1}' -f "$_:", $info[$_]) }
+            $info.Keys | ForEach-Object { $lines += ('  {0,-14} {1}' -f "${_}:", $info[$_]) }
             $lines | Out-File $outFile -Encoding UTF8
             W-OK "Saved: $(Join-Path (Get-Location) $outFile)"
         }
@@ -1232,7 +1232,7 @@ function script:Start-Diagnostics([string]$Serial) {
                 $info = Get-DeviceInfo -Serial $Serial
                 [Console]::WriteLine("")
                 W-Box -Title ' Device information ' -Col $script:C.FrameAct -Lines @(
-                    $info.Keys | ForEach-Object { '  {0,-14} {1}' -f "$_:", $info[$_] }
+                    $info.Keys | ForEach-Object { '  {0,-14} {1}' -f "${_}:", $info[$_] }
                 )
             }
             2 {
