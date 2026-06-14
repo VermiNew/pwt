@@ -77,7 +77,6 @@ function script:W-Dim  ([string]$M) { Write-PwtHost "     $M" -ForegroundColor $
 
 function script:W-Box {
     param([string[]]$Lines, [string]$Title = '', [ConsoleColor]$Col = [ConsoleColor]::DarkCyan)
-    # FIX: use ForEach-Object instead of Measure-Object script-block (PS5 compat was broken)
     $maxLen = ($Lines | ForEach-Object { $_.Length } | Measure-Object -Maximum).Maximum ?? 0
     $inner  = [Math]::Max($maxLen, $Title.Length) + 2
     $bar    = $script:B.H * $inner
@@ -240,7 +239,6 @@ function script:Show-PwtPhoneStatus {
 # =============================================================================
 
 function script:Invoke-Adb {
-    # FIX: renamed from [Alias('Args')] to avoid conflict with $args automatic variable
     param([string[]]$Argv, [switch]$AllowFail)
     $out = & adb @Argv 2>&1
     $ec  = $LASTEXITCODE
@@ -324,51 +322,6 @@ function script:Show-Unauthorized {
         "  i ponownie podłącz kabel."
     )
     Write-PwtHost ""
-}
-
-function script:Select-Device {
-    $all    = Get-AdbDevices
-    $ready  = @($all | Where-Object { $_.Ready })
-    $unauth = @($all | Where-Object { $_.Unauthorized })
-
-    if ($unauth.Count -gt 0 -and $ready.Count -eq 0) { Show-Unauthorized; return $null }
-
-    if ($ready.Count -eq 0) {
-        Write-PwtHost ""
-        W-Box -Title ' Nie znaleziono urządzeń ' -Col $script:C.Err -Lines @(
-            "ADB nie wykryło żadnego gotowego urządzenia."
-            ""
-            "Lista kontrolna:"
-            "  • Kabel USB obsługuje transfer danych (nie tylko ładowanie)"
-            "  • Debugowanie USB włączone w Opcjach programisty"
-            "  • Zaakceptowano 'Zezwolić na debugowanie USB?' na telefonie"
-            "  • Tryb USB ustawiony na Transfer plików / MTP"
-        )
-        return $null
-    }
-
-    if ($ready.Count -eq 1) {
-        $d    = $ready[0]
-        $type = if ($d.IsUSB) { 'USB' } else { 'Wi-Fi' }
-        W-OK "Urządzenie: $($d.Serial)  [$type]"
-        return $d
-    }
-
-    Write-PwtHost ""
-    W-Section "Wykryto kilka urządzeń"
-    for ($i = 0; $i -lt $ready.Count; $i++) {
-        $d    = $ready[$i]
-        $type = if ($d.IsUSB) { 'USB' } else { 'Wi-Fi' }
-        Write-PwtHost "    $($i+1))  $($d.Serial.PadRight(26)) [$type]" -ForegroundColor $script:C.White
-    }
-    Write-PwtHost ""
-    do {
-        $s  = Read-Host "  Wybierz (1-$($ready.Count))"
-        $n  = 0
-        $ok = [int]::TryParse($s, [ref]$n) -and $n -ge 1 -and $n -le $ready.Count
-        if (-not $ok) { W-Err "Nieprawidłowy wybór." }
-    } while (-not $ok)
-    return $ready[$n - 1]
 }
 
 # =============================================================================
@@ -503,7 +456,7 @@ function script:Fmt-Bytes([long]$Bytes) {
 }
 
 function script:Fmt-Date($D) {
-    if ($null -eq $D) { return '                 ' }
+    if ($null -eq $D) { return '                ' }
     return $D.ToString('yyyy-MM-dd HH:mm')
 }
 
@@ -617,7 +570,6 @@ function script:Nav-Up($P) {
         if (-not $p2.Contains('/')) { $P.Path = '/' }
         else {
             $P.Path = $p2.Substring(0, $p2.LastIndexOf('/'))
-            # FIX: was missing the assignment — "if(...) {'/'}" returned value but never assigned
             if ($P.Path -eq '') { $P.Path = '/' }
         }
     }
@@ -767,7 +719,6 @@ function script:Draw-FMPane($P, [int]$X, [bool]$Active) {
     $cx = $X + 1  # content start column
 
     # Row 0: title embedded in top border
-    $icon  = if ($P.IsRemote) { ' 󰖟 ' } else { ' 󰉖 ' }   # fallback: just use text
     $icon  = if ($P.IsRemote) { ' ☎ ' } else { ' ⊞ ' }
     $title = Fit "$icon$($P.Label): $($P.Path)" ($pw - 4)
     $pad   = $pw - $title.Length - 2
@@ -796,9 +747,8 @@ function script:Draw-FMPane($P, [int]$X, [bool]$Active) {
             if ($idx -ge $P.Entries.Count) { Write-At $cx $rowY (' ' * $pw); continue }
             $e     = $P.Entries[$idx]
             $isCur = ($idx -eq $P.Cursor)
-            $nw2   = $pw - 27; if ($nw2 -lt 4) { $nw2 = 4 }
             $ico   = if ($e.IsParent) { "$($script:B.Up) " } elseif ($e.IsDir) { "$($script:B.Arr) " } else { '  ' }
-            $nm    = Fit ($ico + $e.Name) $nw2 -Pad
+            $nm    = Fit ($ico + $e.Name) $nw -Pad
             $sz    = if ($e.IsParent) { '        ' } elseif ($e.IsDir) { '  <DIR> ' } else { Fmt-Bytes $e.Size }
             $dt    = Fmt-Date $e.Modified
             $line  = ('{0} {1,8}  {2,16}') -f $nm, $sz, $dt
@@ -910,7 +860,6 @@ function script:Do-Transfer([string]$Op, $From, $To, $Entry) {
         $src = Join-Path $From.Path $name
         $dst = ($To.Path.TrimEnd('/')) + '/' + $name
         FM-Info "Wysyłanie  $name …"
-        # FIX: was using $From.Serial (local pane, empty) — must use $To.Serial (remote device)
         $r = Invoke-Adb -Argv @('-s', $To.Serial, 'push', $src, $dst) -AllowFail
         if (-not $r.OK) { FM-Err "Push nieudany: $($r.Out | Select-Object -Last 1)"; return $false }
         if ($Op -eq 'Przeniesienie') {
@@ -1051,7 +1000,7 @@ function script:Start-FileManager([string]$Serial, [string]$LocalPath, [string]$
                 }
                 'R'  { FM-Info 'Odświeżanie…'; Update-Pane $A }
                 'F1' { Show-FMHelp }
-                { $_ -in @('Q', 'Escape') } { return }
+                { $_ -in @('Q', 'Escape', 'F10') } { return }
                 default { $redraw = $false }
             }
 
