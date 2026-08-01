@@ -158,6 +158,7 @@ function Register-PwtCommand {
         Category   = $Category
         Requires   = $Requires
         ScriptPath = $ScriptPath
+        Loaded     = $true   # loaded immediately when called from dot-sourced script
     }
 }
 
@@ -285,6 +286,51 @@ function Invoke-PwtElevated {
 
     & $sudo pwsh -NoProfile -Command $cmdText
     return $true
+}
+
+# ============================================================================
+# LAZY REGISTRY — scan pwt-*.ps1 files with regex, no execution at startup
+# ============================================================================
+
+function Initialize-PwtLazyRegistry {
+<#
+.SYNOPSIS
+    Scans pwt-*.ps1 scripts for Register-PwtCommand metadata without executing them.
+    Commands are registered as stubs (Loaded = $false) and dot-sourced on first use.
+#>
+    param([Parameter(Mandatory)][string]$ScriptsDir)
+
+    Get-ChildItem "$ScriptsDir\pwt-*.ps1" -ErrorAction SilentlyContinue | ForEach-Object {
+        $scriptPath = $_.FullName
+        $content = Get-Content $scriptPath -Raw -ErrorAction SilentlyContinue
+        if (-not $content) { return }
+
+        # Match the Register-PwtCommand block (may span multiple lines via backtick)
+        if ($content -notmatch '(?s)Register-PwtCommand\b(.+?)(?=\n[^\s`]|\Z)') { return }
+        $block = $matches[0]
+
+        $name     = if ($block -match "-Name\s+'([^']+)'")     { $matches[1] } else { return }
+        $synopsis = if ($block -match "-Synopsis\s+'([^']+)'") { $matches[1] } else { '' }
+        $function = if ($block -match "-Function\s+'([^']+)'") { $matches[1] } else { return }
+        $category = if ($block -match "-Category\s+'([^']+)'") { $matches[1] } else { 'misc' }
+        $requires = @()
+        if ($block -match "-Requires\s+@\(([^)]+)\)") {
+            $requires = $matches[1] -split ',\s*' | ForEach-Object { $_.Trim().Trim("'`"") }
+        }
+
+        # Only register if not already loaded (dot-sourced scripts register themselves with Loaded=$true)
+        if (-not $global:PwtCommands.Contains($name)) {
+            $global:PwtCommands[$name] = [PSCustomObject]@{
+                Name       = $name
+                Synopsis   = $synopsis
+                Function   = $function
+                Category   = $category
+                Requires   = $requires
+                ScriptPath = $scriptPath
+                Loaded     = $false   # will be dot-sourced on first use
+            }
+        }
+    }
 }
 
 # ============================================================================
@@ -453,6 +499,16 @@ function pwt {
             Write-PwtHost "Unknown command: $Command" -ForegroundColor Red
             Write-PwtHost "Try 'pwt list'." -ForegroundColor Yellow
             return
+        }
+
+        # Lazy-load: dot-source the script on first use
+        if (-not $entry.Loaded) {
+            if (-not $entry.ScriptPath -or -not (Test-Path $entry.ScriptPath)) {
+                Write-PwtHost "Script not found: $($entry.ScriptPath)" -ForegroundColor Red
+                return
+            }
+            . $entry.ScriptPath
+            $entry.Loaded = $true
         }
 
         if (-not (Get-Command $entry.Function -ErrorAction SilentlyContinue)) {

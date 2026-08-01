@@ -5,9 +5,8 @@ $Scripts = "$PSScriptRoot\Scripts"
 # Core MUST load first - it provides Register-PwtCommand and the dispatcher.
 . "$Scripts\_pwt-core.ps1"
 
-# Auto-load every pwt-*.ps1 module. Each registers itself with the dispatcher.
-Get-ChildItem "$Scripts\pwt-*.ps1" -ErrorAction SilentlyContinue |
-    ForEach-Object { . $_.FullName }
+# Lazy-register all pwt-*.ps1 modules (no dot-source yet — loads on first use).
+Initialize-PwtLazyRegistry -ScriptsDir $Scripts
 
 # Convenience: edit profile in edit.exe (fallback to notepad).
 function Edit-Profile {

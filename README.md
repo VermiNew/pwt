@@ -14,7 +14,7 @@ Personal PowerShell 7+ toolbox loaded automatically via `$PROFILE`.
 git clone https://github.com/VermiNew/pwt "$([Environment]::GetFolderPath('MyDocuments'))\PowerShell"
 ```
 
-The profile loads `_pwt-core.ps1` first, then auto-sources every `pwt-*.ps1` from `Scripts/`.
+The profile loads `_pwt-core.ps1` first, then lazy-registers all `pwt-*.ps1` modules via regex scan — each script is dot-sourced only on first use, keeping shell startup fast.
 
 ## Usage
 
@@ -35,7 +35,6 @@ pwt reload              # reload profile
 | `clipsave` | clipboard | Save clipboard content to a file (text / image / file-list) |
 | `cleanspool` | printer | Clear stuck printer queue (Spooler restart + wipe) |
 | `collect` | dev | Bundle text files into one markdown output for LLMs |
-| `diffray` | dev | Run Diffray AI code review presets for Git repositories |
 | `note` | misc | Append timestamped notes to `~/Documents/notes.md` |
 | `parse` | dev | Validate .ps1 syntax via AST parser (no execution) |
 | `phone` | phone | Android ADB helper — streaming, terminal, dual-pane file manager |
@@ -57,8 +56,6 @@ pwt reload              # reload profile
 | `scrcpy` | `phone` (streaming mode) | `winget install Genymobile.scrcpy` |
 | `yt-dlp` | `yt-dlp` | `winget install yt-dlp.yt-dlp` |
 | `ffmpeg` | `yt-dlp` (audio/merge) | `winget install Gyan.FFmpeg` |
-| `diffray` | `diffray` | Install diffray CLI |
-| `opencode` | `diffray` | Install OpenCode CLI |
 | `ssh` | `pinggy` | Built into Windows 10/11 |
 
 ## Legal notice
