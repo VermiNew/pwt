@@ -501,13 +501,19 @@ function pwt {
             return
         }
 
-        # Lazy-load: dot-source the script on first use
+        # Lazy-load: import as temporary module with -Global so functions land in
+        # global scope and survive beyond this dispatcher invocation.
+        # (plain dot-source inside a function is local-scoped — functions vanish on return)
         if (-not $entry.Loaded) {
             if (-not $entry.ScriptPath -or -not (Test-Path $entry.ScriptPath)) {
                 Write-PwtHost "Script not found: $($entry.ScriptPath)" -ForegroundColor Red
                 return
             }
-            . $entry.ScriptPath
+            $p = $entry.ScriptPath
+            $modName = "pwt_lazy_$($entry.Name -replace '[^a-zA-Z0-9]', '_')"
+            $mod = New-Module -Name $modName `
+                -ScriptBlock ([scriptblock]::Create(". '$($p -replace "'", "''")'" ))
+            Import-Module $mod -Global -Force -ErrorAction Stop
             $entry.Loaded = $true
         }
 
