@@ -62,6 +62,24 @@ function Invoke-PwtUnlock {
 
     process {
         foreach ($entry in $Path) {
+
+            # ----------------------------------------------------------------
+            # SAFETY: refuse to unblock an entire drive root (C:\, D:\, etc.)
+            # ----------------------------------------------------------------
+            $testPath = $entry.TrimEnd('\', '/')
+            if ($testPath -match '^[A-Za-z]:$') {
+                Write-Error "Blocked: unlocking an entire drive ('$entry') is not allowed. Specify a folder or files, e.g. C:\Downloads\*.ps1"
+                continue
+            }
+            try {
+                $resolvedRoot = Get-Item -LiteralPath $testPath -ErrorAction Stop
+                if ($resolvedRoot.FullName -match '^[A-Za-z]:\\?$') {
+                    Write-Error "Blocked: unlocking an entire drive ('$($resolvedRoot.FullName)') is not allowed. Specify a folder or files."
+                    continue
+                }
+            } catch {}
+            # ----------------------------------------------------------------
+
             $gciParams = @{
                 Path        = $entry
                 File        = $true
@@ -75,6 +93,34 @@ function Invoke-PwtUnlock {
                 Write-Warning "No files found matching: $entry"
                 continue
             }
+
+            # ----------------------------------------------------------------
+            # CONFIRMATION: show the list of files to be unblocked, then ask
+            # ----------------------------------------------------------------
+            if (-not $WhatIfPreference) {
+                $blockedFiles = $files | Where-Object {
+                    Get-Item -LiteralPath $_.FullName -Stream 'Zone.Identifier' -ErrorAction SilentlyContinue
+                }
+
+                if (-not $blockedFiles) {
+                    Write-PwtHost "  No blocked files found in: $entry" -ForegroundColor Yellow
+                    $totalSkipped += @($files).Count
+                    continue
+                }
+
+                $fileNames = ($blockedFiles | ForEach-Object { $_.Name }) -join ', '
+                Write-PwtHost ""
+                Write-PwtHost "  Files to unblock ($(@($blockedFiles).Count)):" -ForegroundColor Yellow
+                Write-PwtHost "  $fileNames" -ForegroundColor White
+                Write-PwtHost ""
+                $confirm = Read-Host "  Unblock these files? [Y/N]"
+                if ($confirm -notmatch '^[Yy]') {
+                    Write-PwtHost "  Cancelled." -ForegroundColor DarkGray
+                    Write-PwtHost ""
+                    continue
+                }
+            }
+            # ----------------------------------------------------------------
 
             foreach ($file in $files) {
                 $stream = Get-Item -LiteralPath $file.FullName -Stream 'Zone.Identifier' `
